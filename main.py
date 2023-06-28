@@ -6,8 +6,8 @@ import os
 main()
 
 # +
-# image_path = "data/example_1/example_1-0001.tif"
-image_path = "data/RAW_OCT_Files/TEST_T_2708"
+image_path = "data/example_1/example_1-0001.tif"
+# image_path = "data/RAW_OCT_Files/TEST_T_2708"
 # Get the base name of the file
 file_name = os.path.basename(image_path)
 directory = os.path.dirname(image_path)
@@ -16,51 +16,51 @@ directory = os.path.dirname(image_path)
 file_name_without_extension = os.path.splitext(file_name)[0]
 
 # +
-import vtk
+# import vtk
 
-# Create a volume reader
-reader = vtk.vtkVolume16Reader()
-reader.SetFilePrefix(image_path)
-reader.SetFilePattern("%s.vol")
-reader.SetDataDimensions(512, 512)
-reader.SetDataByteOrderToLittleEndian()
-reader.SetImageRange(1, 92)
-reader.SetDataSpacing(3.2, 3.2, 1.5)
-reader.Update()
+# # Create a volume reader
+# reader = vtk.vtkVolume16Reader()
+# reader.SetFilePrefix(image_path)
+# reader.SetFilePattern("%s.vol")
+# reader.SetDataDimensions(512, 512)
+# reader.SetDataByteOrderToLittleEndian()
+# reader.SetImageRange(1, 92)
+# reader.SetDataSpacing(3.2, 3.2, 1.5)
+# reader.Update()
 
-# Get the volume data
-volume_data = reader.GetOutput()
+# # Get the volume data
+# volume_data = reader.GetOutput()
 
-# Perform further processing or visualization with the volume data
-# Create a volume mapper
-volume_mapper = vtk.vtkGPUVolumeRayCastMapper()
-volume_mapper.SetInputData(volume_data)
+# # Perform further processing or visualization with the volume data
+# # Create a volume mapper
+# volume_mapper = vtk.vtkGPUVolumeRayCastMapper()
+# volume_mapper.SetInputData(volume_data)
 
-# Create a volume property
-volume_property = vtk.vtkVolumeProperty()
-volume_property.ShadeOff()
-volume_property.SetInterpolationTypeToLinear()
+# # Create a volume property
+# volume_property = vtk.vtkVolumeProperty()
+# volume_property.ShadeOff()
+# volume_property.SetInterpolationTypeToLinear()
 
-# Create a volume
-volume = vtk.vtkVolume()
-volume.SetMapper(volume_mapper)
-volume.SetProperty(volume_property)
+# # Create a volume
+# volume = vtk.vtkVolume()
+# volume.SetMapper(volume_mapper)
+# volume.SetProperty(volume_property)
 
-# Create a renderer and add the volume to it
-renderer = vtk.vtkRenderer()
-renderer.AddVolume(volume)
+# # Create a renderer and add the volume to it
+# renderer = vtk.vtkRenderer()
+# renderer.AddVolume(volume)
 
-# Create a render window
-render_window = vtk.vtkRenderWindow()
-render_window.AddRenderer(renderer)
+# # Create a render window
+# render_window = vtk.vtkRenderWindow()
+# render_window.AddRenderer(renderer)
 
-# Create an interactor
-interactor = vtk.vtkRenderWindowInteractor()
-interactor.SetRenderWindow(render_window)
+# # Create an interactor
+# interactor = vtk.vtkRenderWindowInteractor()
+# interactor.SetRenderWindow(render_window)
 
-# Start the rendering and interaction
-render_window.Render()
-interactor.Start()
+# # Start the rendering and interaction
+# render_window.Render()
+# interactor.Start()
 
 
 # +
