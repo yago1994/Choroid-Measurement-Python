@@ -8,7 +8,7 @@
 # How to use this program
 
 Requirements
-- Jupyter -> Install Jupyter first from https://jupyter.org/
+- Jupyter Notebook -> Install Jupyter Notebook first from https://jupyter.org/
 
 Then use:
 
