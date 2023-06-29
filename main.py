@@ -1,9 +1,11 @@
+main()
+
+analysis()
+
 import cv2
 import numpy as np
 import pandas as pd
 import os
-
-main()
 
 # +
 image_path = "data/example_1/example_1-0001.tif"
@@ -137,36 +139,38 @@ def get_coordinates_of_pixels(image, target_color):
 
     return coordinates, min_y_coordinates, max_y_coordinates
 
-image = cv2.imread("data/example_1/example_1-0001_modified.tif")
-height, width, _ = image.shape
-print("Height of image is", height)
-print("Width of image is", width)
-target_color = (0, 0, 255)
 
-coordinates, min_y_coordinates, max_y_coordinates = get_coordinates_of_pixels(image, target_color)
-# print("Coordinates of pixels with color", target_color, ":", coordinates)
+def analysis():
+    image = cv2.imread("data/example_1/example_1-0001_modified.tif")
+    height, width, _ = image.shape
+    print("Height of image is", height)
+    print("Width of image is", width)
+    target_color = (0, 0, 255)
 
-# for x in range(width):
-#     print("For X coordinate", x, ":")
-#     print("Minimum Y coordinate:", min_y_coordinates[x])
-#     print("Maximum Y coordinate:", max_y_coordinates[x])
-    
-y_diffs = [max_y_coordinates[x] - min_y_coordinates[x] for x in range(width)]
+    coordinates, min_y_coordinates, max_y_coordinates = get_coordinates_of_pixels(image, target_color)
+    # print("Coordinates of pixels with color", target_color, ":", coordinates)
 
-# print("Differences between Min and Max Y coordinates for each X coordinate:", y_diffs)
+    # for x in range(width):
+    #     print("For X coordinate", x, ":")
+    #     print("Minimum Y coordinate:", min_y_coordinates[x])
+    #     print("Maximum Y coordinate:", max_y_coordinates[x])
 
-# Convert the list to a DataFrame
-df = pd.DataFrame(y_diffs, columns=['Pixel Thickness'])
+    y_diffs = [max_y_coordinates[x] - min_y_coordinates[x] for x in range(width)]
 
-# Add "_analysis" to the file name
-csv_file_name = directory + "/" + file_name_without_extension + "_analysis.csv"
+    # print("Differences between Min and Max Y coordinates for each X coordinate:", y_diffs)
 
-print("CSV file name:", csv_file_name)
+    # Convert the list to a DataFrame
+    df = pd.DataFrame(y_diffs, columns=['Pixel Thickness'])
 
-# Save the DataFrame as a CSV file
-df.to_csv(csv_file_name, index=False)
+    # Add "_analysis" to the file name
+    csv_file_name = directory + "/" + file_name_without_extension + "_analysis.csv"
 
-print("Saved your analysis file!")
+    print("CSV file name:", csv_file_name)
+
+    # Save the DataFrame as a CSV file
+    df.to_csv(csv_file_name, index=False)
+
+    print("Saved your analysis file!")
 # -
 
 
