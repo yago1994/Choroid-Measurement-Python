@@ -152,3 +152,5 @@ cython_debug/
 #.idea/
 data/.DS_Store
 .DS_Store
+data/
+temp_data/
