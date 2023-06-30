@@ -1,4 +1,4 @@
-draw()
+main()
 
 analysis()
 
@@ -12,7 +12,6 @@ import time
 import shutil
 
 
-# +
 def main():
     directory = 'data/RAW_OCT_Files/'
     
@@ -26,11 +25,7 @@ def main():
     print(imagepath)
     
     draw(image, imagepath)
-    
-main()
 
-
-# -
 
 def getImage(directory):
     
@@ -103,8 +98,6 @@ def extractImage(folder):
     
     return image, imagepath
 
-
-draw('oct-000.png','temp_data/oct-000.png')
 
 # +
 drawing=False # true if mouse is pressed
