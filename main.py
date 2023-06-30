@@ -1,4 +1,4 @@
-main()
+draw()
 
 analysis()
 
@@ -6,112 +6,166 @@ import cv2
 import numpy as np
 import pandas as pd
 import os
+from PIL import Image
+import heyexReader
+import time
+import shutil
+
 
 # +
-image_path = "data/example_1/example_1-0001.tif"
-# image_path = "data/RAW_OCT_Files/TEST_T_2708"
-# Get the base name of the file
-file_name = os.path.basename(image_path)
-directory = os.path.dirname(image_path)
+def main():
+    directory = 'data/RAW_OCT_Files/'
+    
+    filepath = getImage(directory)
+    
+    folder = loadImagesInFolder(filepath)
+    
+    [image, imagepath] = extractImage(folder)
+       
+    print(image)
+    print(imagepath)
+    
+    draw(image, imagepath)
+    
+main()
 
-# Remove the file extension
-file_name_without_extension = os.path.splitext(file_name)[0]
 
-# +
-# import vtk
+# -
 
-# # Create a volume reader
-# reader = vtk.vtkVolume16Reader()
-# reader.SetFilePrefix(image_path)
-# reader.SetFilePattern("%s.vol")
-# reader.SetDataDimensions(512, 512)
-# reader.SetDataByteOrderToLittleEndian()
-# reader.SetImageRange(1, 92)
-# reader.SetDataSpacing(3.2, 3.2, 1.5)
-# reader.Update()
+def getImage(directory):
+    
+    print('Here is a list of files in the data directory')
+    entries = os.listdir(directory)
+    
+    counter = 0
+    for entry in entries:
+        print('[{}] {}'.format(counter, entry))
+        counter += 1
+    
+    time.sleep(0.2)
+    
+    user_selection = input('Indicate which file you want to analyze: ')
+        
+    image_path = entries[int(user_selection)]
+    
+    # Get the base name of the file
+#     file_name = os.path.basename(image_path)
+#     directory = os.path.dirname(image_path)
+    
+    filepath = directory + image_path
+    
+    return filepath 
 
-# # Get the volume data
-# volume_data = reader.GetOutput()
 
-# # Perform further processing or visualization with the volume data
-# # Create a volume mapper
-# volume_mapper = vtk.vtkGPUVolumeRayCastMapper()
-# volume_mapper.SetInputData(volume_data)
+def loadImagesInFolder(filepath):
+    tempfolder = "temp_data"
+    
+    vol = heyexReader.volFile(filepath)
 
-# # Create a volume property
-# volume_property = vtk.vtkVolumeProperty()
-# volume_property.ShadeOff()
-# volume_property.SetInterpolationTypeToLinear()
+    vol.renderIRslo("slo.png", renderGrid = True)
+    vol.renderOCTscans("oct", renderSeg = True)
 
-# # Create a volume
-# volume = vtk.vtkVolume()
-# volume.SetMapper(volume_mapper)
-# volume.SetProperty(volume_property)
+    print(vol.oct.shape)
+    print(vol.irslo.shape)
+    
+    image_file = vol.oct
+    
+    # Delete everything in folder
+    for f in os.listdir(tempfolder):
+            os.remove(os.path.join(tempfolder, f))
+            
+    for i in range(0, 6):
+        try:
+            source_file = f"oct-00{i}.png"  # Replace "image{i}.png" with the actual filename pattern of your generated PNG files
+            shutil.move(source_file, tempfolder)
+        except FileNotFoundError:
+            print(f"File 'oct-00{i}.png' does not exist")
+            break
+            
+    
+    
+    return tempfolder
 
-# # Create a renderer and add the volume to it
-# renderer = vtk.vtkRenderer()
-# renderer.AddVolume(volume)
 
-# # Create a render window
-# render_window = vtk.vtkRenderWindow()
-# render_window.AddRenderer(renderer)
+def extractImage(folder):
 
-# # Create an interactor
-# interactor = vtk.vtkRenderWindowInteractor()
-# interactor.SetRenderWindow(render_window)
+    entries = os.listdir(folder)
+    counter = 0
+    for entry in entries:
+        print('[{}] {}'.format(counter, entry))
+        counter += 1
+    
+    user_selection = input('Indicate which file you want to analyze: ')
+        
+    image = entries[int(user_selection)]
+    
+    imagepath = folder + '/'+ image
+    
+    return image, imagepath
 
-# # Start the rendering and interaction
-# render_window.Render()
-# interactor.Start()
 
+draw('oct-000.png','temp_data/oct-000.png')
 
 # +
 drawing=False # true if mouse is pressed
 mode=True # if True, draw rectangle. Press 'm' to toggle to curve
-image = cv2.imread(image_path)
 
+def draw(image, imagepath):
+#     imagepath = 'temp_data/oct-000.png'
+#     directory = 'temp_data'
 
-def main():
+    drawing=False # true if mouse is pressed
+    mode=True # if True, draw rectangle. Press 'm' to toggle to curve
+
+    image = cv2.imread(imagepath)
+    
+    def draw_lines(event,former_x,former_y,flags,param):
+
+        global current_former_x,current_former_y,drawing, mode
+
+        if event==cv2.EVENT_LBUTTONDOWN:
+            drawing=True
+            current_former_x,current_former_y=former_x,former_y
+
+        elif event==cv2.EVENT_MOUSEMOVE:
+            if drawing==True:
+                if mode==True:
+                    cv2.line(image,(current_former_x,current_former_y),(former_x,former_y),(0, 0, 255), 2)
+                    current_former_x = former_x
+                    current_former_y = former_y
+                    #print former_x,former_y
+        elif event==cv2.EVENT_LBUTTONUP:
+            drawing=False
+            if mode==True:
+                cv2.line(image,(current_former_x,current_former_y),(former_x,former_y),(0, 0, 255), 2)
+                current_former_x = former_x
+                current_former_y = former_y
+        return former_x,former_y   
+
     cv2.namedWindow("Choroid Measure OpenCV")
     cv2.setMouseCallback('Choroid Measure OpenCV',draw_lines)
-    
+
     while(1):
         cv2.imshow('Choroid Measure OpenCV',image)
         k=cv2.waitKey(1)&0xFF
         if k==27:
+
             break
+
     # Wait for a key press
     cv2.waitKey(0)
 
     # Close the window
     cv2.destroyAllWindows()
-    
-    new_image_path = directory + "/" + file_name_without_extension + "_modified.tif"
+
+    # Get file name
+    file_name = os.path.basename(imagepath)
+    file_name_without_extension = os.path.splitext(file_name)[0]
+
+    new_image_path = directory + "/" + file_name_without_extension + ".png"
     cv2.imwrite(new_image_path, image)
-
-
-def draw_lines(event,former_x,former_y,flags,param):
     
-    global current_former_x,current_former_y,drawing, mode
-
-    if event==cv2.EVENT_LBUTTONDOWN:
-        drawing=True
-        current_former_x,current_former_y=former_x,former_y
-
-    elif event==cv2.EVENT_MOUSEMOVE:
-        if drawing==True:
-            if mode==True:
-                cv2.line(image,(current_former_x,current_former_y),(former_x,former_y),(0, 0, 255), 2)
-                current_former_x = former_x
-                current_former_y = former_y
-                #print former_x,former_y
-    elif event==cv2.EVENT_LBUTTONUP:
-        drawing=False
-        if mode==True:
-            cv2.line(image,(current_former_x,current_former_y),(former_x,former_y),(0, 0, 255), 2)
-            current_former_x = former_x
-            current_former_y = former_y
-    return former_x,former_y   
+    print("🎉 Your anotated images has been saved!")
 
 
 # +
