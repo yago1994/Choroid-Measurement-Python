@@ -26,22 +26,26 @@ In Terminal
 
 This should launch your brower and initiate a Jupyter Session. Click on main.py
 
-1. With main.py open you want to run all the cells below the ```imports``` block 
+1. With main.py open you want to run all the cells below the ```imports``` block (that cell included) 
 
 2. To run the cells you can go to 'Cells' > 'Run all below'
 
 3. Wait for all the cells have run (there won't be any * marks on the left)
 
-4. **For Drawing**: Edit the directory path in ```directory = 'data/RAW_OCT_Files/'``` to the folder name where you are storing your OCT images. Then run this ```def main()``` cell block.
+## **For Extracting the .vol file**: Run the first cell with the ```extract()``` block.
 
-5. Run the ```main()``` block in the top of the file.
+4. Follow the instructions in the UI. This will extract your images in the temp_folder/
 
-6. Go through the prompts in the UI selecting first the image .vol file you want to analyze, and then the frame within that .vol image. **Use numbers when you are selecting the image (i.e. 1)**
+## **For Drawing**: Run the ```annotate()``` block.
 
-7. A window will appear with the sample image for analysis. Click with your mouse on it to draw the boundary
+5. Go through the prompts in the UI selecting first the image you want to analyze. **Use numbers when you are selecting the image (i.e. 1)**
 
-8. **For Analysis**: Edit the file path in ```"data/example_1/example_1-0001_modified.tif"``` to the image that has just been generated in the ```temp_data/``` folder. It will be something like ```temp_data/OCT_0001_modified.tif```. Then run this code block.
+6. A window will appear with the sample image for analysis. Click with your mouse on it to draw the boundary.
 
-9. Run the ```analysis()``` code block at the top of the file.
+7. Press 'Esc' 2x to finish your annotation.
 
-10. A csv with the pixel thickness will appear after a few seconds
+## **For Analysis**: Run the ```analysis()``` code block at the top of the file.
+
+8. Select the image you want to analysis.
+
+9. A csv file including the pixel thickness will be created in the csv_data/ folder after a few seconds
