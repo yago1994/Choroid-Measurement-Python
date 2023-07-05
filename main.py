@@ -4,6 +4,8 @@ annotate(filepath)
 
 analysis()
 
+getTS()
+
 import cv2
 import numpy as np
 import pandas as pd
@@ -12,6 +14,7 @@ from PIL import Image
 import heyexReader
 import time
 import shutil
+import numpy as np
 
 
 def extract():
@@ -282,6 +285,75 @@ def analysis():
     df.to_csv(csv_file_name, index=False)
 
     print("🎉 Your analysis file has been saved!")
-# -
 
+
+# -
+def getTS():
+
+    #calculations based on Bennett and Rabbetts 3-surface schematic eye
+
+    #user needs to input corneal radius, anterior chamber depth (ACD), lens thickness (LT), and axial length (AL)
+    #these values will be provided from the LenStar
+    
+    corneaRadBoolean = input("Is Corneal Radius provided by the Instrument? Type y/n")
+    
+    if corneaRadBoolean == 'y':
+        corneaRad = float(input('Please type the corneal radius: '))
+#         corneaRad = 7.8
+
+    else:
+        corneaCurvature = float(input('Please type the corneal curvature: '))
+        corneaRad = 337.5/corneaCurvature
+        
+    ACD = float(input("Please type the anterior chamber depth (ACD): "))
+    LT = float(input("Please type the lens thickness (LT): "))
+    AL = float(input("Please type the axial length (AL): "))
+
+    #corneaRad = 337.5/corneaCurvature 
+    #above equation is to convert corneal curvature (in diopters) to corneal radius (in mm)
+    #if the LenStar provides corneal curvature, we will need to convert it into corneal radius for the equations below
+#     ACD = 3.6
+#     LT = 3.7
+#     AL = 24.09
+
+    #lens radius, based on Bennett and Rabbetts schematic emmetropic eye model
+    #LenStar does not provide lens curvature, so it can only be estimated 
+    antLensRad = 11
+    posLensRad = -6.47515
+
+    #refractive indices, these values do not change
+    n1 = 1 #air
+    n2 = 1.336 #aqueous humor
+    n3 = 1.422 #equivalent lens 
+    n4 = 1.336 #vitreous humor
+
+    #surface powers
+    F1 =(1000*(n2-n1))/corneaRad #cornea power
+    F2 =(1000*(n3-n2))/antLensRad #anterior lens power
+    F3 = (1000*(n4-n3))/posLensRad #posterior lens power
+
+    FL = F2+F3-((LT*F2*F3)/(1000*n3)) #lens equivalent power
+
+    #lens principal points
+    A2P2 = (n2*LT*F3)/(n3*FL) #e2
+    A3Pp2 = -(n4*LT*F2)/(n3*FL) #e'2
+
+    F0 = F1+FL-(((ACD+A2P2)*F1*FL)/(1000*n2)) #eye equivalent power
+
+    #focal lengths of the eye
+    f0 = -1000*n1/F0
+    f1 = 1000*n4/F0
+
+    #eye's principal points
+    Pp2Pp = -(n4*(ACD+A2P2)*F1)/(n2*F0) #e'
+    A1Pp = ACD+LT+A3Pp2+Pp2Pp
+
+    A1Np = A1Pp+f1+f0 #second nodal point
+
+    NpFp = AL-A1Np #second nodal point to back of the eye
+
+    RS = np.pi/180*NpFp*1000 #retinal scaling in microns/deg
+    TS = RS/(1536/30) #transverse scaling in microns/pixel
+
+    return TS
 
