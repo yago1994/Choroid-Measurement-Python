@@ -1,4 +1,6 @@
-main()
+[folder, filepath] = extract()
+
+annotate(folder, filepath)
 
 analysis()
 
@@ -12,23 +14,21 @@ import time
 import shutil
 
 
-# +
-def main():
+def extract():
     directory = getDirectory()
     
     filepath = getImage(directory)
     
     folder = loadImagesInFolder(filepath)
-    
+
+    return folder, filepath
+
+
+def annotate(folder, filepath):
     [image, imagepath] = extractImage(folder)
-       
-#     print(image)
-#     print(imagepath)
     
     draw(image, imagepath, filepath)
 
-
-# -
 
 def getDirectory():
     
@@ -108,6 +108,13 @@ def loadImagesInFolder(filepath):
 #             print(f"File 'oct-00{i}.png' does not exist")
             break    
     
+    # Get file name
+    filename = os.path.basename(filepath)
+    
+    print(f"The file {filename} will be extracted into individual images...")
+    
+    print(f"🎉 The images have been extracted into /{tempfolder}")
+    
     return tempfolder
 
 
@@ -126,6 +133,16 @@ def extractImage(folder):
     image = entries[int(user_selection)]
     
     imagepath = folder + '/'+ image
+    
+    print("⏲️ A window will open in a couple of seconds...")
+    
+    time.sleep(1)
+    
+    print("Window loaded!")
+    
+    time.sleep(0.2)
+    
+    print("⚠️ When you are finished, press the 'Esc' button in your keyboard to save the image")
     
     return image, imagepath
 
