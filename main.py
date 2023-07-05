@@ -1,6 +1,6 @@
-[folder, filepath] = extract()
+filepath = extract()
 
-annotate(folder, filepath)
+annotate(filepath)
 
 analysis()
 
@@ -21,11 +21,11 @@ def extract():
     
     folder = loadImagesInFolder(filepath)
 
-    return folder, filepath
+    return filepath
 
 
-def annotate(folder, filepath):
-    [image, imagepath] = extractImage(folder)
+def annotate(filepath):
+    [image, imagepath] = extractImage()
     
     draw(image, imagepath, filepath)
 
@@ -120,7 +120,9 @@ def loadImagesInFolder(filepath):
 
 # -
 
-def extractImage(folder):
+def extractImage():
+    
+    folder = "temp_data"
 
     entries = os.listdir(folder)
     counter = 0
@@ -142,7 +144,7 @@ def extractImage(folder):
     
     time.sleep(0.2)
     
-    print("⚠️ When you are finished, press the 'Esc' button in your keyboard to save the image")
+    print("⚠️ When you are finished, press the 'Esc' button in your keyboard 2x to save the image")
     
     return image, imagepath
 
