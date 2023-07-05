@@ -12,8 +12,9 @@ import time
 import shutil
 
 
+# +
 def main():
-    directory = 'data/RAW_OCT_Files/'
+    directory = getDirectory()
     
     filepath = getImage(directory)
     
@@ -21,15 +22,44 @@ def main():
     
     [image, imagepath] = extractImage(folder)
        
-    print(image)
-    print(imagepath)
+#     print(image)
+#     print(imagepath)
     
-    draw(image, imagepath)
+    draw(image, imagepath, filepath)
+
+
+# -
+
+def getDirectory():
+    
+    directory = 'data/'
+    
+    print(f'Here is a list of folders in the {directory} directory')
+    entries = os.listdir(directory)
+    
+    counter = 0
+    for entry in entries:
+        print('[{}] {}'.format(counter, entry))
+        counter += 1
+    
+    time.sleep(0.2)
+    
+    user_selection = input('Indicate which folder you want to open: ')
+        
+    folder = entries[int(user_selection)]
+    
+    # Get the base name of the file
+#     file_name = os.path.basename(image_path)
+#     directory = os.path.dirname(image_path)
+    
+    folderpath = directory + folder
+    
+    return folderpath 
 
 
 def getImage(directory):
     
-    print('Here is a list of files in the data directory')
+    print(f'Here is a list of files in the {directory} directory')
     entries = os.listdir(directory)
     
     counter = 0
@@ -47,11 +77,12 @@ def getImage(directory):
 #     file_name = os.path.basename(image_path)
 #     directory = os.path.dirname(image_path)
     
-    filepath = directory + image_path
+    filepath = directory + "/" + image_path
     
     return filepath 
 
 
+# +
 def loadImagesInFolder(filepath):
     tempfolder = "temp_data"
     
@@ -60,8 +91,8 @@ def loadImagesInFolder(filepath):
     vol.renderIRslo("slo.png", renderGrid = True)
     vol.renderOCTscans("oct", renderSeg = True)
 
-    print(vol.oct.shape)
-    print(vol.irslo.shape)
+#     print(vol.oct.shape)
+#     print(vol.irslo.shape)
     
     image_file = vol.oct
     
@@ -74,13 +105,13 @@ def loadImagesInFolder(filepath):
             source_file = f"oct-00{i}.png"  # Replace "image{i}.png" with the actual filename pattern of your generated PNG files
             shutil.move(source_file, tempfolder)
         except FileNotFoundError:
-            print(f"File 'oct-00{i}.png' does not exist")
-            break
-            
-    
+#             print(f"File 'oct-00{i}.png' does not exist")
+            break    
     
     return tempfolder
 
+
+# -
 
 def extractImage(folder):
 
@@ -90,7 +121,7 @@ def extractImage(folder):
         print('[{}] {}'.format(counter, entry))
         counter += 1
     
-    user_selection = input('Indicate which file you want to analyze: ')
+    user_selection = input('Indicate which image you want to analyze: ')
         
     image = entries[int(user_selection)]
     
@@ -103,9 +134,7 @@ def extractImage(folder):
 drawing=False # true if mouse is pressed
 mode=True # if True, draw rectangle. Press 'm' to toggle to curve
 
-def draw(image, imagepath):
-#     imagepath = 'temp_data/oct-000.png'
-#     directory = 'temp_data'
+def draw(image, imagepath, original_filepath):
 
     drawing=False # true if mouse is pressed
     mode=True # if True, draw rectangle. Press 'm' to toggle to curve
@@ -154,11 +183,20 @@ def draw(image, imagepath):
     # Get file name
     file_name = os.path.basename(imagepath)
     file_name_without_extension = os.path.splitext(file_name)[0]
+    
+    # Get file directory
+    directory = "annotated_images/"
+    
+    # Get original file name
+    original_file_name = os.path.basename(original_filepath)
+    original_file_name_without_extension = os.path.splitext(original_file_name)[0] 
 
-    new_image_path = directory + "/" + file_name_without_extension + ".png"
+    new_image_path = directory + original_file_name_without_extension + "_" +file_name_without_extension + "_annotated.png"
     cv2.imwrite(new_image_path, image)
     
-    print("🎉 Your anotated images has been saved!")
+    print("Annotated file name:", new_image_path)
+    
+    print("🎉 Your anotated image has been saved!")
 
 
 # +
@@ -188,7 +226,10 @@ def get_coordinates_of_pixels(image, target_color):
 
 
 def analysis():
-    image = cv2.imread("data/example_1/example_1-0001_modified.tif")
+    
+    imagepath = getImage("annotated_images/")
+    
+    image = cv2.imread(imagepath)
     height, width, _ = image.shape
     print("Height of image is", height)
     print("Width of image is", width)
@@ -208,16 +249,20 @@ def analysis():
 
     # Convert the list to a DataFrame
     df = pd.DataFrame(y_diffs, columns=['Pixel Thickness'])
+    
+    # Get file name
+    file_name = os.path.basename(imagepath)
+    file_name_without_extension = os.path.splitext(file_name)[0]
 
     # Add "_analysis" to the file name
-    csv_file_name = directory + "/" + file_name_without_extension + "_analysis.csv"
+    csv_file_name = "csv_data/" + file_name_without_extension + "_analysis.csv"
 
     print("CSV file name:", csv_file_name)
 
     # Save the DataFrame as a CSV file
     df.to_csv(csv_file_name, index=False)
 
-    print("Saved your analysis file!")
+    print("🎉 Your analysis file has been saved!")
 # -
 
 
