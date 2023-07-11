@@ -7,7 +7,7 @@ color = top_color
 annotate(filepath)
 # -
 
-analysis()
+analyze()
 
 getTS()
 
@@ -64,6 +64,12 @@ def annotate(filepath):
         drawInstructions()
 
         draw(image, imagepath, filepath, top_color, bottom_color)
+
+
+def analyze():
+    [data, imagepath] = analysis()
+    
+    createCSV(data, filepath)
 
 
 def getFolderContent(directory):
@@ -313,7 +319,7 @@ def get_coordinates_of_pixels(image):
     return coordinates, min_y_coordinates, max_y_coordinates
 
 
-def analysis(imagepath):
+def analysis():
         
     imagepath = getFolderContent(annotatedfolder)
     
@@ -339,6 +345,12 @@ def analysis(imagepath):
     # Convert the list to a DataFrame
     df = pd.DataFrame(y_diffs, columns=['Pixel Thickness'])
     
+    # Append to Dataframe
+    return df, imagepath
+
+
+# -
+def createCSV(dataframe, imagepath):
     # Get file name
     file_name = os.path.basename(imagepath)
     file_name_without_extension = os.path.splitext(file_name)[0]
@@ -349,12 +361,11 @@ def analysis(imagepath):
     print("CSV file name:", csv_file_name)
 
     # Save the DataFrame as a CSV file
-    df.to_csv(csv_file_name, index=False)
+    dataframe.to_csv(csv_file_name, index=False)
 
     print("🎉 Your analysis file has been saved!")
 
 
-# -
 def getTS():
 
     #calculations based on Bennett and Rabbetts 3-surface schematic eye
