@@ -43,6 +43,8 @@ def annotate(filepath):
     
     contents = showFolderContents(tempfolder)
     
+    deleteFolderContent(annotatedfolder)
+    
     if number_of_files == 'y':
         # Analyze all images
         for i in range(0,len(os.listdir(tempfolder))):
@@ -84,6 +86,12 @@ def getFolderContent(directory):
     return path 
 
 
+def deleteFolderContent(directory):
+    # Delete everything in folder
+    for f in os.listdir(directory):
+        os.remove(os.path.join(directory, f))
+
+
 def loadImagesInFolder(filepath):
     
     vol = heyexReader.volFile(filepath)
@@ -100,9 +108,7 @@ def loadImagesInFolder(filepath):
     
     image_file = vol.oct
     
-    # Delete everything in folder
-    for f in os.listdir(tempfolder):
-            os.remove(os.path.join(tempfolder, f))
+    deleteFolderContent(tempfolder)
             
     for i in range(0, 6):
         try:
