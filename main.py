@@ -40,20 +40,27 @@ def extract():
 def annotate(filepath):
     number_of_files = input("Do you want to analyze ALL files? y/n: ")
     
+    contents = showFolderContents(tempfolder)
+    
     if number_of_files == 'y':
         # Analyze all images
         for i in range(0,len(os.listdir(tempfolder))):
-            [image, imagepath] = extractImage_withoutInstructions(i)
+            [image, imagepath] = extractImage(i, contents)
+            
+            drawInstructions()
 
             draw(image, imagepath, filepath, top_color, bottom_color)
         
         print("\n🎉🎉🎉 All images have been analyzed!")
         
     else: 
-        [image, imagepath] = extractImage()
+        user_selection = input('Indicate which image you want to analyze: ')
+        
+        [image, imagepath] = extractImage(int(user_selection), contents)
+        
+        drawInstructions()
 
         draw(image, imagepath, filepath, top_color, bottom_color)
-
 
 
 def getDirectory():
@@ -144,62 +151,41 @@ def loadImagesInFolder(filepath):
     print(f"🎉 The images have been extracted into /{tempfolder}")
 
 
-def extractImage():
+def showFolderContents(selectedfolder):
 
-    entries = os.listdir(tempfolder)
+    entries = os.listdir(selectedfolder)
     counter = 0
     for entry in entries:
         print('[{}] {}'.format(counter, entry))
         counter += 1
     
-    user_selection = input('Indicate which image you want to analyze: ')
+    return entries
+
+
+def extractImage(user_selection, entries):
         
     image = entries[int(user_selection)]
     
     imagepath = tempfolder + '/'+ image
     
+    return image, imagepath
+
+
+def drawInstructions():
+    
     print("⏲️ A window will open in a couple of seconds...")
-    
+
     time.sleep(1)
-    
+
     print("Window loaded!")
-    
+
     time.sleep(0.2)
-    
+
     print("💡 To change color to blue Right-click on your mouse")
-    
+
     time.sleep(0.2)
-    
+
     print("⚠️ When you are finished, press the 'Esc' button in your keyboard 2x to save the image")
-    
-    return image, imagepath
-
-
-def extractImage_withoutInstructions(img):
-
-    entries = os.listdir(tempfolder)
-    
-    image = entries[img]
-    
-    imagepath = tempfolder + '/'+ image
-    
-    if img == 0:
-        # Display instructions for the first analysis
-        print("⏲️ A window will open in a couple of seconds...")
-
-        time.sleep(1)
-
-        print("Window loaded!")
-
-        time.sleep(0.2)
-
-        print("💡 To change color to blue Right-click on your mouse")
-
-        time.sleep(0.2)
-
-        print("⚠️ When you are finished, press the 'Esc' button in your keyboard 2x to save the image")
-    
-    return image, imagepath
 
 
 # +
