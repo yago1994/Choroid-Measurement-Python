@@ -22,15 +22,16 @@ import shutil
 import numpy as np
 
 # Persistent variables
+datafolder = "data"
 tempfolder = "temp_data"
 annotatedfolder = "annotated_images"
 csvfolder = "csv_data"
 
 
 def extract():
-    directory = getDirectory()
+    directory = getFolderContent(datafolder)
     
-    filepath = getImage(directory)
+    filepath = getFolderContent(directory)
     
     loadImagesInFolder(filepath)
 
@@ -63,21 +64,14 @@ def annotate(filepath):
         draw(image, imagepath, filepath, top_color, bottom_color)
 
 
-def getDirectory():
-    
-    directory = 'data/'
-    
+def getFolderContent(directory):
     print(f'Here is a list of folders in the {directory} directory')
-    entries = os.listdir(directory)
     
-    counter = 0
-    for entry in entries:
-        print('[{}] {}'.format(counter, entry))
-        counter += 1
+    entries = showFolderContents(directory)
     
     time.sleep(0.2)
     
-    user_selection = input('Indicate which folder you want to open: ')
+    user_selection = input('Indicate which file/folder you want to open: ')
         
     folder = entries[int(user_selection)]
     
@@ -85,34 +79,9 @@ def getDirectory():
 #     file_name = os.path.basename(image_path)
 #     directory = os.path.dirname(image_path)
     
-    folderpath = directory + folder
+    path = directory + '/' + folder
     
-    return folderpath 
-
-
-def getImage(directory):
-    
-    print(f'Here is a list of files in the {directory} directory')
-    entries = os.listdir(directory)
-    
-    counter = 0
-    for entry in entries:
-        print('[{}] {}'.format(counter, entry))
-        counter += 1
-    
-    time.sleep(0.2)
-    
-    user_selection = input('Indicate which file you want to analyze: ')
-        
-    image_path = entries[int(user_selection)]
-    
-    # Get the base name of the file
-#     file_name = os.path.basename(image_path)
-#     directory = os.path.dirname(image_path)
-    
-    filepath = directory + "/" + image_path
-    
-    return filepath 
+    return path 
 
 
 def loadImagesInFolder(filepath):
@@ -124,7 +93,7 @@ def loadImagesInFolder(filepath):
     scaleX = vol.fileHeader['scaleX']
     scaleZ = vol.fileHeader['scaleZ']
     
-    print("This is the scaleX from the Heidelberg measurement", scaleX)
+    print("\nThis is the scaleX from the Heidelberg measurement", scaleX)
     print("This is the scaleZ from the Heidelberg measurement", scaleZ)
 #     print(vol.oct.shape)
 #     print(vol.irslo.shape)
@@ -146,7 +115,7 @@ def loadImagesInFolder(filepath):
     # Get file name
     filename = os.path.basename(filepath)
     
-    print(f"The file {filename} will be extracted into individual images...")
+    print(f"\nThe file {filename} will be extracted into individual images...")
     
     print(f"🎉 The images have been extracted into /{tempfolder}")
 
@@ -340,7 +309,7 @@ def get_coordinates_of_pixels(image):
 
 def analysis(imagepath):
         
-    imagepath = getImage("annotated_images/")
+    imagepath = getFolderContent(annotatedfolder)
     
     image = cv2.imread(imagepath)
     height, width, _ = image.shape
