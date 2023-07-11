@@ -21,21 +21,39 @@ import time
 import shutil
 import numpy as np
 
+# Persistent variables
+tempfolder = "temp_data"
+annotatedfolder = "annotated_images"
+csvfolder = "csv_data"
+
 
 def extract():
     directory = getDirectory()
     
     filepath = getImage(directory)
     
-    folder = loadImagesInFolder(filepath)
+    loadImagesInFolder(filepath)
 
     return filepath
 
 
 def annotate(filepath):
-    [image, imagepath] = extractImage()
+    number_of_files = input("Do you want to analyze ALL files? y/n: ")
     
-    draw(image, imagepath, filepath, top_color, bottom_color)
+    if number_of_files == 'y':
+        # Analyze all images
+        for i in range(0,len(os.listdir(tempfolder))):
+            [image, imagepath] = extractImage_withoutInstructions(i)
+
+            draw(image, imagepath, filepath, top_color, bottom_color)
+        
+        print("\n🎉🎉🎉 All images have been analyzed!")
+        
+    else: 
+        [image, imagepath] = extractImage()
+
+        draw(image, imagepath, filepath, top_color, bottom_color)
+
 
 
 def getDirectory():
@@ -91,7 +109,6 @@ def getImage(directory):
 
 
 def loadImagesInFolder(filepath):
-    tempfolder = "temp_data"
     
     vol = heyexReader.volFile(filepath)
 
@@ -125,15 +142,11 @@ def loadImagesInFolder(filepath):
     print(f"The file {filename} will be extracted into individual images...")
     
     print(f"🎉 The images have been extracted into /{tempfolder}")
-    
-    return tempfolder
 
 
 def extractImage():
-    
-    folder = "temp_data"
 
-    entries = os.listdir(folder)
+    entries = os.listdir(tempfolder)
     counter = 0
     for entry in entries:
         print('[{}] {}'.format(counter, entry))
@@ -143,7 +156,7 @@ def extractImage():
         
     image = entries[int(user_selection)]
     
-    imagepath = folder + '/'+ image
+    imagepath = tempfolder + '/'+ image
     
     print("⏲️ A window will open in a couple of seconds...")
     
@@ -158,6 +171,33 @@ def extractImage():
     time.sleep(0.2)
     
     print("⚠️ When you are finished, press the 'Esc' button in your keyboard 2x to save the image")
+    
+    return image, imagepath
+
+
+def extractImage_withoutInstructions(img):
+
+    entries = os.listdir(tempfolder)
+    
+    image = entries[img]
+    
+    imagepath = tempfolder + '/'+ image
+    
+    if img == 0:
+        # Display instructions for the first analysis
+        print("⏲️ A window will open in a couple of seconds...")
+
+        time.sleep(1)
+
+        print("Window loaded!")
+
+        time.sleep(0.2)
+
+        print("💡 To change color to blue Right-click on your mouse")
+
+        time.sleep(0.2)
+
+        print("⚠️ When you are finished, press the 'Esc' button in your keyboard 2x to save the image")
     
     return image, imagepath
 
@@ -178,6 +218,14 @@ def draw(image, imagepath, original_filepath, top_color, bottom_color):
     color = top_color  # Start with the top layer color
 
     image = cv2.imread(imagepath)
+    
+        # Add transparent layer to image
+#     transparent_image = np.zeros_like(image, dtype=np.uint8)
+#     overlay = image.copy()
+#     alpha = 0.2  # Opacity of the rectangle (adjust as needed)
+#     print(image.shape)
+#     cv2.rectangle(overlay, (0, 0), (image.shape[1], image.shape[0]), (255, 255, 255), -1)  # Draw the rectangle on the overlay
+#     image = cv2.addWeighted(overlay, alpha, image, 1, 0)
     
     def draw_lines(event, former_x, former_y, flags, param):
 
@@ -304,8 +352,8 @@ def get_coordinates_of_pixels(image):
     return coordinates, min_y_coordinates, max_y_coordinates
 
 
-def analysis():
-    
+def analysis(imagepath):
+        
     imagepath = getImage("annotated_images/")
     
     image = cv2.imread(imagepath)
