@@ -7,7 +7,7 @@ color = top_color
 annotate(filepath)
 # -
 
-analyze()
+analyze(filepath)
 
 getTS()
 
@@ -26,6 +26,7 @@ datafolder = "data"
 tempfolder = "temp_data"
 annotatedfolder = "annotated_images"
 csvfolder = "csv_data"
+filepath = ""
 
 
 def extract():
@@ -39,18 +40,22 @@ def extract():
 
 
 def annotate(filepath):
-    number_of_files = input("Do you want to analyze ALL files? y/n: ")
+    number_of_files_in_folder = len(os.listdir(tempfolder))
+    
+    number_of_files = input(f'Do you want to analyze ALL {number_of_files_in_folder} files? y/n: ')
     
     contents = showFolderContents(tempfolder)
     
     deleteFolderContent(annotatedfolder)
     
     if number_of_files == 'y':
+        
         # Analyze all images
-        for i in range(0,len(os.listdir(tempfolder))):
-            [image, imagepath] = extractImage(i, contents)
+        for i in range(0,number_of_files_in_folder):
+            [image, imagepath] = extractImage(i, contents, tempfolder)
             
-            drawInstructions()
+            if i == 0:
+                drawInstructions()
 
             draw(image, imagepath, filepath, top_color, bottom_color)
         
@@ -59,17 +64,48 @@ def annotate(filepath):
     else: 
         user_selection = input('Indicate which image you want to analyze: ')
         
-        [image, imagepath] = extractImage(int(user_selection), contents)
+        [image, imagepath] = extractImage(int(user_selection), contents, tempfolder)
         
         drawInstructions()
 
         draw(image, imagepath, filepath, top_color, bottom_color)
 
 
-def analyze():
-    [data, imagepath] = analysis()
+def analyze(filepath):
+    number_of_files_in_folder = len(os.listdir(annotatedfolder))
     
-    createCSV(data, filepath)
+    number_of_files = input(f'Do you want to analyze ALL {number_of_files_in_folder} files? y/n: ')
+    
+    contents = showFolderContents(annotatedfolder)
+    
+    deleteFolderContent(csvfolder)
+    
+    if number_of_files == 'y':
+        
+        # Create an empty dataframe before the loop
+        combined_dataframe = pd.DataFrame()
+        
+        # Analyze all images
+        for i in range(0, number_of_files_in_folder):
+            [file, imagepath] = extractImage(i, contents, annotatedfolder)
+                        
+            pixeldata, rpe_line = analysis(imagepath)
+    
+            data = createDataFrame(pixeldata, rpe_line, filepath)
+        
+            # Append the data to the combined_dataframe
+            combined_dataframe = pd.concat([combined_dataframe, data], axis=1, ignore_index=True)
+
+        print("\n🎉🎉🎉 All images have been analyzed!")
+        
+    else: 
+        imagepath = getFolderContent(annotatedfolder)
+        
+        pixeldata, rpe_line = analysis(imagepath)
+
+        combined_dataframe = createDataFrame(pixeldata, rpe_line, filepath)
+        
+    createCSV(combined_dataframe, filepath)
 
 
 def getFolderContent(directory):
@@ -143,11 +179,34 @@ def showFolderContents(selectedfolder):
     return entries
 
 
-def extractImage(user_selection, entries):
+# +
+# imagepath = 'temp_data/oct-001.png'
+# image = cv2.imread(imagepath)
+# print(image.shape, image.dtype)
+
+# # b, g, r = cv2.split(image)
+# # rgb_image = cv2.merge([b, g, r])
+# print(image)
+# # cv2.imshow("RGB Image", image)
+
+# # Extract the desired channel
+# channel_index = 2  # Replace 0 with the index of the channel you want to view
+# channel_image = rgb_image[:, :, channel_index]
+
+# print(channel_image.shape,channel_image.dtype)
+
+# # Display the channel image
+# # Assuming the image is in BGR format
+# # cv2.imshow("RGB Image", channel_image)
+# cv2.waitKey(0)
+# cv2.destroyAllWindows()
+# -
+
+def extractImage(user_selection, entries, folder):
         
     image = entries[int(user_selection)]
     
-    imagepath = tempfolder + '/'+ image
+    imagepath = folder + '/'+ image
     
     return image, imagepath
 
@@ -319,10 +378,7 @@ def get_coordinates_of_pixels(image):
     return coordinates, min_y_coordinates, max_y_coordinates
 
 
-def analysis():
-        
-    imagepath = getFolderContent(annotatedfolder)
-    
+def analysis(imagepath):
     image = cv2.imread(imagepath)
     height, width, _ = image.shape
     print("Height of image is", height)
@@ -331,25 +387,91 @@ def analysis():
     top_color = (0, 255, 0)
 
     coordinates, min_y_coordinates, max_y_coordinates = get_coordinates_of_pixels(image)
-    # print("Coordinates of pixels with color", target_color, ":", coordinates)
-
-    # for x in range(width):
-    #     print("For X coordinate", x, ":")
-    #     print("Minimum Y coordinate:", min_y_coordinates[x])
-    #     print("Maximum Y coordinate:", max_y_coordinates[x])
 
     y_diffs = [max_y_coordinates[x] - min_y_coordinates[x] for x in range(width)]
-
-    # print("Differences between Min and Max Y coordinates for each X coordinate:", y_diffs)
-
-    # Convert the list to a DataFrame
-    df = pd.DataFrame(y_diffs, columns=['Pixel Thickness'])
     
-    # Append to Dataframe
-    return df, imagepath
+    r_line_coordinates, rpe_line_y_values = getRPE(image)
+        
+    return y_diffs, rpe_line_y_values
+# +
+# imagepath = 'annotated_images/TEST_T_2713_oct-003_annotated.png'
+# image = cv2.imread(imagepath)
+# print(image.shape)
+# [coord, y_values] = getRPE(image)
+# print(y_values)
+# print(image)
+# cv2.imshow('Choroid Measure OpenCV',image)
+# # Wait for a key press
+# cv2.waitKey(0)
 
-
+# # # Close the window
+# cv2.destroyAllWindows()
 # -
+
+def getRPE(image):
+    coordinates = []
+    y_values = []
+
+    # Get the shape of the image
+    height, width, _ = image.shape
+
+    min_y_coordinates = [height] * width
+    max_y_coordinates = [0] * width
+
+    for x in range(width):
+        for y in range(height):
+            # Get the color of the pixel at the current coordinates
+            pixel_color = image[y, x]
+            
+            if (pixel_color[2] == 255 and (pixel_color[2] > pixel_color[0]) and (pixel_color[2] > pixel_color[1])):
+                # If it matches, add the coordinates to the list
+                coordinates.append((x, y))
+                y_values.append(y)
+
+    return coordinates, y_values
+
+
+def getOriginalChoroidLine(image):
+    coordinates = []
+
+    # Get the shape of the image
+    height, width, _ = image.shape
+
+    min_y_coordinates = [height] * width
+    max_y_coordinates = [0] * width
+
+    for x in range(width):
+        for y in range(height):
+            # Get the color of the pixel at the current coordinates
+            pixel_color = image[y, x]
+            
+            # Avoid the same green color that we draw manually
+            if (pixel_color[1] == 255) and (pixel_color != top_color):
+                # If it matches, add the coordinates to the list
+                coordinates.append((x, y))
+
+    return coordinates
+
+
+def createDataFrame(choroid_top_line, rpe_line, filepath):
+    filename = os.path.basename(filepath)
+    
+    # Convert the list to a DataFrame
+    df = pd.DataFrame()
+    
+    df['RPE Coordinates'] = rpe_line
+    df['Top Choroid Coordinates'] = choroid_top_line
+    
+    return df
+
+
+def appendToDataFrame(df1, df2):
+    
+    combined_dataframe = pd.concat([df1, df2], axis=1)
+    
+    return combined_dataframe
+
+
 def createCSV(dataframe, imagepath):
     # Get file name
     file_name = os.path.basename(imagepath)
