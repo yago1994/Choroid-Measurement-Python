@@ -472,14 +472,14 @@ def selectWindowSize(window_size, fovea_index, image):
     
     
     return start_index, end_index
-selectWindowSize(1,746,image)
+
 
 # +
-imagepath = 'annotated_images/TEST_T_2713_oct-003_annotated.png'
-image = cv2.imread(imagepath)
+# imagepath = 'annotated_images/TEST_T_2713_oct-003_annotated.png'
+# image = cv2.imread(imagepath)
 # print(image.shape)
-[coord, y_values] = getOriginalChoroidLine(image)
-print(y_values)
+# [coord, y_values] = getOriginalChoroidLine(image)
+# print(y_values)
 # print(image)
 # cv2.imshow('Choroid Measure OpenCV',image)
 # # Wait for a key press
