@@ -1,3 +1,11 @@
+# +
+# Input first the TS parameters
+# TS = getTS()
+
+# Pseudo
+TS = 0.012007717043161392
+# -
+
 filepath = extract()
 
 # +
@@ -8,8 +16,6 @@ annotate(filepath)
 # -
 
 analyze(filepath)
-
-getTS()
 
 import cv2
 import numpy as np
@@ -27,6 +33,7 @@ tempfolder = "temp_data"
 annotatedfolder = "annotated_images"
 csvfolder = "csv_data"
 filepath = ""
+TS = 0
 
 
 def extract():
@@ -360,6 +367,8 @@ def get_coordinates_of_pixels(image):
 
     min_y_coordinates = [height] * width
     max_y_coordinates = [0] * width
+    
+    add_y_value_for_missing_x_coordinate = True
 
     for x in range(width):
         for y in range(height):
@@ -371,9 +380,17 @@ def get_coordinates_of_pixels(image):
                 # If it matches, add the coordinates to the list
                 coordinates.append((x, y))
                 if np.array_equal(pixel_color, bottom_color):
-                    max_y_coordinates[x] = max(max_y_coordinates[x], y)
+                    max_y_coordinates.append(max(max_y_coordinates[x], y))
                 elif np.array_equal(pixel_color, top_color):
-                    min_y_coordinates[x] = min(min_y_coordinates[x], y)
+                    min_y_coordinates.append(min(min_y_coordinates[x], y))
+                    
+                add_y_value_for_missing_x_coordinate = False
+                    
+        if add_y_value_for_missing_x_coordinate:
+            max_y_coordinates.append(0)
+            min_y_coordinates.append(0)
+        
+        add_y_value_for_missing_x_coordinate = True
 
     return coordinates, min_y_coordinates, max_y_coordinates
 
@@ -386,19 +403,83 @@ def analysis(imagepath):
     bottom_color = (0, 0, 255)
     top_color = (0, 255, 0)
 
-    coordinates, min_y_coordinates, max_y_coordinates = get_coordinates_of_pixels(image)
+#     coordinates, min_y_coordinates, max_y_coordinates = get_coordinates_of_pixels(image)
 
-    y_diffs = [max_y_coordinates[x] - min_y_coordinates[x] for x in range(width)]
+#     y_diffs = [max_y_coordinates[x] - min_y_coordinates[x] for x in range(width)]
+
+    r_line_coordinates, rpe_line_y_values = getRPE(image)
+    
+    ogtopcoords, ogtop_choroid_y_value = getOriginalChoroidLine(image)
+    
+    topcoords, top_choroid_y_value = getTopChoroidLine(image)
+    
+    bcoords, bottom_choroid_y_value = getBottomChoroidLine(image)
+    
+    # Compute differences in coordinates from top to bottom
+    y_diffs = [bottom_choroid_y_value[x] - top_choroid_y_value[x] for x in range(width)]
     
     r_line_coordinates, rpe_line_y_values = getRPE(image)
+    
+    fovea_index = findFovea(rpe_line_y_values)
+    
+    window_size = int(input("What's your desired window size in mm?: "))
+    
+    start_index, end_index = selectWindowSize(window_size, fovea_index, image)
+    
+    # Compute only the selected window
+    window_rpe_line_y_values = rpe_line_y_values[start_index: end_index]
+    
+    window_size_scaled = end_index - start_index
+    
+    # Compute differences in coordinates from top to bottom
+    y_diffs = [bottom_choroid_y_value[start_index:end_index][x] - top_choroid_y_value[start_index:end_index][x] for x in range(window_size_scaled)]
         
-    return y_diffs, rpe_line_y_values
+    return y_diffs, window_rpe_line_y_values
+
+
+# -
+# Find the Min of the RPE Line
+def findFovea(array):
+    minimum = np.max(array)
+    indices = np.where(array == minimum)[0]
+    middle_index = indices[len(indices) // 2]
+    
+    print("Middle index:", middle_index)
+    
+    return middle_index
+
+
+# window_size : in millimiters
+def selectWindowSize(window_size, fovea_index, image):
+    
+    height, width, _ = image.shape
+    
+    real_x_size = width * TS
+    print(real_x_size)
+    
+    total_pixels_needed = (window_size * width) / real_x_size
+    
+    # Calculate how many pixels in each direction are needed
+    start_index = int(fovea_index - total_pixels_needed / 2)
+    end_index = int(fovea_index + total_pixels_needed / 2)
+    
+    # Fail safe if numbers are beyond size of image
+    if start_index < 0:
+        start_index = 0
+    
+    if end_index > width:
+        end_index = width
+    
+    
+    return start_index, end_index
+selectWindowSize(1,746,image)
+
 # +
-# imagepath = 'annotated_images/TEST_T_2713_oct-003_annotated.png'
-# image = cv2.imread(imagepath)
+imagepath = 'annotated_images/TEST_T_2713_oct-003_annotated.png'
+image = cv2.imread(imagepath)
 # print(image.shape)
-# [coord, y_values] = getRPE(image)
-# print(y_values)
+[coord, y_values] = getOriginalChoroidLine(image)
+print(y_values)
 # print(image)
 # cv2.imshow('Choroid Measure OpenCV',image)
 # # Wait for a key press
@@ -417,6 +498,8 @@ def getRPE(image):
 
     min_y_coordinates = [height] * width
     max_y_coordinates = [0] * width
+    
+    add_y_value_for_missing_x_coordinate = True
 
     for x in range(width):
         for y in range(height):
@@ -427,18 +510,64 @@ def getRPE(image):
                 # If it matches, add the coordinates to the list
                 coordinates.append((x, y))
                 y_values.append(y)
+                add_y_value_for_missing_x_coordinate = False
+                
+                # Should I add a break here since it already found the coordinate to make it faster?
+        
+        if add_y_value_for_missing_x_coordinate:
+            y_values.append(0)
+        
+        add_y_value_for_missing_x_coordinate = True
+        
+        # Validation is that there should be exactly the width-of-the-image in pixels
 
     return coordinates, y_values
 
 
 def getOriginalChoroidLine(image):
     coordinates = []
+    y_values = []
 
     # Get the shape of the image
     height, width, _ = image.shape
 
     min_y_coordinates = [height] * width
     max_y_coordinates = [0] * width
+    
+    add_y_value_for_missing_x_coordinate = True
+
+    for x in range(width):
+        for y in range(height):
+            # Get the color of the pixel at the current coordinates
+            pixel_color = image[y, x]
+
+            # Avoid the same green color that we draw manually
+            if pixel_color[1] == 255 and np.not_equal(pixel_color, top_color).any() and np.not_equal(pixel_color, bottom_color).any():
+                # If it matches, add the coordinates to the list
+                coordinates.append((x, y))
+                y_values.append(y)
+                add_y_value_for_missing_x_coordinate = False
+                break
+        
+        if add_y_value_for_missing_x_coordinate:
+            y_values.append(0)
+        
+        add_y_value_for_missing_x_coordinate = True
+
+    return coordinates, y_values
+
+
+def getTopChoroidLine(image):
+    coordinates = []
+    y_values = []
+
+    # Get the shape of the image
+    height, width, _ = image.shape
+
+    min_y_coordinates = [height] * width
+    max_y_coordinates = [0] * width
+    
+    add_y_value_for_missing_x_coordinate = True
 
     for x in range(width):
         for y in range(height):
@@ -446,11 +575,52 @@ def getOriginalChoroidLine(image):
             pixel_color = image[y, x]
             
             # Avoid the same green color that we draw manually
-            if (pixel_color[1] == 255) and (pixel_color != top_color):
+            if np.equal(pixel_color, top_color).all():
                 # If it matches, add the coordinates to the list
                 coordinates.append((x, y))
+                y_values.append(y)
+                add_y_value_for_missing_x_coordinate = False
+                break
+        
+        if add_y_value_for_missing_x_coordinate:
+            y_values.append(0)
+        
+        add_y_value_for_missing_x_coordinate = True
 
-    return coordinates
+    return coordinates, y_values
+
+
+def getBottomChoroidLine(image):
+    coordinates = []
+    y_values = []
+
+    # Get the shape of the image
+    height, width, _ = image.shape
+
+    min_y_coordinates = [height] * width
+    max_y_coordinates = [0] * width
+    
+    add_y_value_for_missing_x_coordinate = True
+
+    for x in range(width):
+        for y in range(height):
+            # Get the color of the pixel at the current coordinates
+            pixel_color = image[y, x]
+            
+            # Avoid the same green color that we draw manually
+            if np.equal(pixel_color, bottom_color).all():
+                # If it matches, add the coordinates to the list
+                coordinates.append((x, y))
+                y_values.append(y)
+                add_y_value_for_missing_x_coordinate = False
+                break
+        
+        if add_y_value_for_missing_x_coordinate:
+            y_values.append(0)
+        
+        add_y_value_for_missing_x_coordinate = True
+
+    return coordinates, y_values
 
 
 def createDataFrame(choroid_top_line, rpe_line, filepath):
