@@ -12,10 +12,12 @@ filepath = extract()
 # Set starting color as green
 color = top_color
 
+# This color global variable only fires at the top of the code, which means that even though I keep resetting it inside the functions, it doesn't actually reset for real
+
 annotate(filepath)
 # -
 
-analyze(filepath)
+analyze(filepath)                                                  
 
 import cv2
 import numpy as np
@@ -65,7 +67,7 @@ def annotate(filepath):
                 drawInstructions()
 
             draw(image, imagepath, filepath, top_color, bottom_color)
-        
+                    
         print("\n🎉🎉🎉 All images have been analyzed!")
         
     else: 
@@ -742,4 +744,10 @@ def getTS():
 
 # Display all pixel thicknesses in the same file
 # Display the 1mm, 3mm, 6mm
+
+
+# Add each window size to a separate tab
+# Cut out a window size in the red line that avoids optic nerve, it will either be left or right
+# Overwrite the green line
+# Depth enhanced mode displays the choroid at higher contrast, try to increase contrast of all bottom part of image to analyze
 
