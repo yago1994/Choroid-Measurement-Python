@@ -5,10 +5,11 @@
 
 #  ⚠️ This program is under development ⚠️
 
-# How to use this program
-
-Requirements
-- Jupyter Notebook -> Install Jupyter Notebook first from https://jupyter.org/
+# Getting Started
+1. Have a usable command prompt, i.e. Windows PowerShell, Terminal
+2. Install python (3.10 should work)
+3. Install Pypi
+4. Install Jupyter Notebook from https://jupyter.org/
 
 Then use:
 
