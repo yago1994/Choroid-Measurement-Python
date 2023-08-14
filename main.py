@@ -33,6 +33,7 @@ top_color = (0, 255, 0) # Green color for the RPE
 bottom_color = (255, 255, 0) # Yellow color for the CSI
 color = top_color  # Start with the top layer color
 window_size = 0
+original_image_width = 0
 
 
 def extract():
@@ -46,6 +47,7 @@ def extract():
 
 
 def annotate(filepath):
+    
     number_of_files_in_folder = len(os.listdir(tempfolder))
     
     number_of_files = input(f'Do you want to analyze ALL {number_of_files_in_folder} files? y/n: ')
@@ -63,7 +65,7 @@ def annotate(filepath):
             if i == 0:
                 drawInstructions()
 
-            end_color = draw(image, imagepath, filepath, top_color, bottom_color, number_of_files_in_folder, i)
+            end_color = draw(imagepath, filepath, top_color, bottom_color, number_of_files_in_folder, i)
                     
         print("\n🎉🎉🎉 All images have been analyzed!")
         
@@ -74,7 +76,7 @@ def annotate(filepath):
         
         drawInstructions()
 
-        draw(image, imagepath, filepath, top_color, bottom_color, 1, 0)
+        draw(imagepath, filepath, top_color, bottom_color, 1, 0)
 
 
 def analyze(filepath):
@@ -86,7 +88,7 @@ def analyze(filepath):
     
     contents = showFolderContents(annotatedfolder)
     
-    deleteFolderContent(csvfolder)
+    # deleteFolderContent(csvfolder)
     
     if number_of_files == 'y':
         
@@ -248,13 +250,18 @@ bottom_color = (255, 255, 0) # Yellow color for the CSI
 color = top_color  # Start with the top layer color
 brush_size = 1
 
-def draw(image, imagepath, original_filepath, top_color, bottom_color, image_set, image_pos):
-
+def draw(imagepath, original_filepath, top_color, bottom_color, image_set, image_pos):
+    global original_image_width
+    
     drawing=False # true if mouse is pressed
     top_color = top_color
     bottom_color = bottom_color
 
     im = cv2.imread(imagepath)
+    
+    # Get original image width and store in variable
+    original_image_width = im.shape[1]
+    
     image = cv2.resize(im, (1920, 1080))      
     
     def draw_lines(event, former_x, former_y, flags, param):
@@ -581,9 +588,7 @@ def analysis(imagepath):
     
     # Compute differences in coordinates from top to bottom
     y_diffs = [bottom_choroid_y_value[x] - top_choroid_y_value[x] for x in range(width)]
-    
-    r_line_coordinates, rpe_line_y_values = getRPE(image)
-    
+        
     fovea_index = findFovea(rpe_line_y_values)
 
     start_index, end_index = selectWindowSize(window_size, fovea_index, image)
@@ -602,9 +607,14 @@ def analysis(imagepath):
 # -
 # Find the Min of the RPE Line
 def findFovea(array):
-    minimum = np.max(array)
-    indices = np.where(array == minimum)[0]
-    middle_index = indices[len(indices) // 2]
+    # Ignore 1/4 on each side of the array to count for optic nerve
+    start_index = len(array) // 4
+    end_index = len(array) - start_index
+    short_array = array[start_index:end_index]
+
+    minimum = np.max(short_array)
+    indices = np.where(short_array == minimum)[0]
+    middle_index = indices[len(indices) // 2] + start_index
     
     print("Middle index:", middle_index)
     
@@ -616,7 +626,10 @@ def selectWindowSize(window_size, fovea_index, image):
     
     height, width, _ = image.shape
     
-    real_x_size = width * TS
+    # New TS as computed by the extension of the original image
+    TS_corrected = (TS * original_image_width) / width
+    
+    real_x_size = width * TS_corrected
     print(real_x_size)
     
     total_pixels_needed = (window_size * width) / real_x_size
@@ -668,11 +681,14 @@ def getRPE(image):
             # Get the color of the pixel at the current coordinates
             pixel_color = image[y, x]
             
-            if (pixel_color[2] == 255 and (pixel_color[2] > pixel_color[0]) and (pixel_color[2] > pixel_color[1])):
+            # Remove requirement for pure red (0,0,255)
+            if (pixel_color[2] > pixel_color[0]) and (pixel_color[2] > pixel_color[1]) and (pixel_color[0] == pixel_color[1]):
                 # If it matches, add the coordinates to the list
                 coordinates.append((x, y))
                 y_values.append(y)
                 add_y_value_for_missing_x_coordinate = False
+                
+                break
                 
                 # Should I add a break here since it already found the coordinate to make it faster?
         
@@ -810,7 +826,7 @@ def createCSV(dataframe, imagepath):
     file_name_without_extension = os.path.splitext(file_name)[0]
 
     # Add "_analysis" to the file name
-    csv_file_name = "csv_data/" + file_name_without_extension + "_analysis_" + window_size + "mm.csv"
+    csv_file_name = "csv_data/" + file_name_without_extension + "_analysis_" + str(window_size) + "mm.csv"
 
     print("CSV file name:", csv_file_name)
 
@@ -912,6 +928,18 @@ def getTS():
 # Depth enhanced mode displays the choroid at higher contrast, try to increase contrast of all bottom part of image to analyze
 
 # -
+def trimmExcessImage(imagepath):
+    image = cv2.imread(imagepath)
+    
+    height, width, _ = image.shape
+    
+    # Trim 2/4 of the image away 
+    start_index = width // 4
+    end_index = width - start_index
+    
+    trimmed_image = image[0:height, start_index:end_index]
+    
+    return trimmed_image
 
 
 # +
@@ -949,13 +977,15 @@ def contrastConversion():
     cv2.waitKey(0)
     cv2.destroyAllWindows()
     
-# contrastConversion()
+contrastConversion()
 
 
 # -
 
 
 def printPixelOnImage(image):
+    
+    image = cv2.imread("annotated_images/TEST_T_2731_0_oct-000_annotated.png")
     # Callback function to capture mouse events
     def mouse_callback(event, x, y, flags, param):
         if event == cv2.EVENT_MOUSEMOVE:
@@ -963,6 +993,7 @@ def printPixelOnImage(image):
         elif event == cv2.EVENT_LBUTTONDOWN:
             pixel_color = image[y, x]
             print("Hovered Pixel Color (BGR):", pixel_color)
+            print("Coordinate", [x, y])
 
     # Load the image
     # image = cv2.imread('your_image_path.png')
