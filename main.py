@@ -246,7 +246,7 @@ def drawInstructions():
 
     time.sleep(0.2)
 
-    print("💡 To change color to blue Right-click on your mouse")
+    print("💡 To change color Right-click on your mouse")
 
     time.sleep(0.2)
 
@@ -256,8 +256,11 @@ def drawInstructions():
 # +
 drawing=False # true if mouse is pressed
 top_color = (0, 255, 0) # Green color for the RPE
-bottom_color = (255, 255, 0) # Yellow color for the CSI
+bottom_color = (255, 255, 0) # Blue color for the CSI
+fovea_color = (0, 255, 255) # _ color for the Fovea
+colors = [top_color, bottom_color, fovea_color]
 color = top_color  # Start with the top layer color
+color_index = 0
 brush_size = 1
 
 def draw(imagepath, original_filepath, top_color, bottom_color, image_set, image_pos):
@@ -266,6 +269,9 @@ def draw(imagepath, original_filepath, top_color, bottom_color, image_set, image
     drawing=False # true if mouse is pressed
     top_color = top_color
     bottom_color = bottom_color
+    
+    # Initialize the index
+    color_index = 0
 
     im = cv2.imread(imagepath)
     
@@ -276,7 +282,7 @@ def draw(imagepath, original_filepath, top_color, bottom_color, image_set, image
     
     def draw_lines(event, former_x, former_y, flags, param):
 
-        global current_former_x, current_former_y, drawing, mode, color
+        global current_former_x, current_former_y, drawing, mode, color, color_index, brush_size
 
         if event==cv2.EVENT_LBUTTONDOWN:
             drawing=True
@@ -299,12 +305,28 @@ def draw(imagepath, original_filepath, top_color, bottom_color, image_set, image
             current_former_y = former_y
                 
         elif event==cv2.EVENT_RBUTTONDOWN:
-            if color == bottom_color:
-#                 print('switching color to green')
-                color = top_color  # switch to green
+            # Increment the index
+            color_index += 1
+
+            # If the index is at the end of the list, reset it to 0
+            if color_index == len(colors):
+                color_index = 0
+                
+            if color_index == 2:
+                brush_size = 5
             else:
-                print('switching color to blue')
-                color = bottom_color  # switch back to blue
+                brush_size = 1
+
+            # Get the next color from the list
+            color = colors[color_index]
+
+            print('Switching color to', color)
+#             if color == bottom_color:
+# #                 print('switching color to green')
+#                 color = top_color  # switch to green
+#             else:
+#                 print('switching color to blue')
+#                 color = bottom_color  # switch back to blue
                 
                 
             # Overwrite previous display
@@ -326,6 +348,8 @@ def draw(imagepath, original_filepath, top_color, bottom_color, image_set, image
             color_info += "Green"
         elif color == bottom_color:
             color_info += "Blue"
+        elif color == fovea_color:
+            color_info += "Yellow"
 
         # Overwrite previous display
         cv2.putText(image, color_info, text_position, cv2.FONT_HERSHEY_SIMPLEX, 1, text_color, 2, cv2.LINE_AA)
