@@ -34,6 +34,7 @@ bottom_color = (255, 255, 0) # Yellow color for the CSI
 color = top_color  # Start with the top layer color
 window_size = 0
 original_image_width = 0
+window_sizes = [1,3,6]
 
 
 def extract():
@@ -90,6 +91,8 @@ def analyze(filepath):
     
     # deleteFolderContent(csvfolder)
     
+    dataframes = []
+    
     if number_of_files == 'y':
         
         # Create an empty dataframe before the loop
@@ -97,6 +100,8 @@ def analyze(filepath):
         
         # Define window size
         window_size = int(input("What's your desired window size in mm?: "))
+        
+        # ⚠️ NEED TO EDIT THIS FOR THE ADDING TO EXCEL PIECE -> Potentially return the dataframes or dataframe object and pass that to another function
         
         # Analyze all images
         for i in range(0, number_of_files_in_folder):
@@ -113,14 +118,19 @@ def analyze(filepath):
         
     else: 
         imagepath = getFolderContent(annotatedfolder)
-        
-        window_size = int(input("What's your desired window size in mm?: "))
-        
-        pixeldata, rpe_line = analysis(imagepath)
 
-        combined_dataframe = createDataFrame(pixeldata, rpe_line, filepath)
+        for i in range(0,len(window_sizes)):
+            window_size = window_sizes[i]
+            
+            pixeldata, rpe_line = analysis(imagepath)
+
+            combined_dataframe = createDataFrame(pixeldata, rpe_line, filepath)
+            
+            dataframes.append(combined_dataframe)
+            
+            print("Analyzing at ",window_siz
         
-    createCSV(combined_dataframe, filepath)
+    createExcel(dataframes, filepath)
 
 
 def getFolderContent(directory):
@@ -569,8 +579,8 @@ def get_coordinates_of_pixels(image):
 def analysis(imagepath):
     image = cv2.imread(imagepath)
     height, width, _ = image.shape
-    print("Height of image is", height)
-    print("Width of image is", width)
+#     print("Height of image is", height)
+#     print("Width of image is", width)
     bottom_color = (0, 0, 255)
     top_color = (0, 255, 0)
 
@@ -630,7 +640,6 @@ def selectWindowSize(window_size, fovea_index, image):
     TS_corrected = (TS * original_image_width) / width
     
     real_x_size = width * TS_corrected
-    print(real_x_size)
     
     total_pixels_needed = (window_size * width) / real_x_size
     
@@ -644,7 +653,6 @@ def selectWindowSize(window_size, fovea_index, image):
     
     if end_index > width:
         end_index = width
-    
     
     return start_index, end_index
 
@@ -836,6 +844,28 @@ def createCSV(dataframe, imagepath):
     print("🎉 Your analysis file has been saved!")
 
 
+def createExcel(dataframes, imagepath):
+    # Get file name
+    file_name = os.path.basename(imagepath)
+    file_name_without_extension = os.path.splitext(file_name)[0]
+    
+    # Add "_analysis" to the sheet name
+    filename = "csv_data/" + file_name_without_extension + "_analysis.xlsx"
+
+    # Create the Excel writer object
+    writer = pd.ExcelWriter(filename, engine='xlsxwriter')
+
+    for i, dataframe in enumerate(dataframes):
+        sheet_name = str(window_sizes[i])+"mm"
+        # Write the dataframe to a sheet in the Excel file
+        dataframe.to_excel(writer, sheet_name=sheet_name, index=False)
+
+    # Save the Excel file
+    writer.save()
+
+    print("🎉 Your analysis file has been saved!")
+
+
 def getTS():
 
     #calculations based on Bennett and Rabbetts 3-surface schematic eye
@@ -977,7 +1007,7 @@ def contrastConversion():
     cv2.waitKey(0)
     cv2.destroyAllWindows()
     
-contrastConversion()
+# contrastConversion()
 
 
 # -
