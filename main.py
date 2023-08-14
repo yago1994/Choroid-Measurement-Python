@@ -128,7 +128,7 @@ def analyze(filepath):
             
             dataframes.append(combined_dataframe)
             
-            print("Analyzing at ",window_siz
+            print(f"Analyzing at {window_size} mm")
         
     createExcel(dataframes, filepath)
 
