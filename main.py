@@ -8,14 +8,7 @@ TS = 0.012007717043161392
 
 filepath = extract()
 
-# +
-# Set starting color as green
-color = top_color
-
-# This color global variable only fires at the top of the code, which means that even though I keep resetting it inside the functions, it doesn't actually reset for real
-
 annotate(filepath)
-# -
 
 analyze(filepath)                                                  
 
@@ -36,6 +29,10 @@ annotatedfolder = "annotated_images"
 csvfolder = "csv_data"
 filepath = ""
 TS = 0
+top_color = (0, 255, 0) # Green color for the RPE
+bottom_color = (255, 255, 0) # Yellow color for the CSI
+color = top_color  # Start with the top layer color
+window_size = 0
 
 
 def extract():
@@ -66,7 +63,7 @@ def annotate(filepath):
             if i == 0:
                 drawInstructions()
 
-            draw(image, imagepath, filepath, top_color, bottom_color)
+            end_color = draw(image, imagepath, filepath, top_color, bottom_color, number_of_files_in_folder, i)
                     
         print("\n🎉🎉🎉 All images have been analyzed!")
         
@@ -77,10 +74,12 @@ def annotate(filepath):
         
         drawInstructions()
 
-        draw(image, imagepath, filepath, top_color, bottom_color)
+        draw(image, imagepath, filepath, top_color, bottom_color, 1, 0)
 
 
 def analyze(filepath):
+    global window_size
+    
     number_of_files_in_folder = len(os.listdir(annotatedfolder))
     
     number_of_files = input(f'Do you want to analyze ALL {number_of_files_in_folder} files? y/n: ')
@@ -93,6 +92,9 @@ def analyze(filepath):
         
         # Create an empty dataframe before the loop
         combined_dataframe = pd.DataFrame()
+        
+        # Define window size
+        window_size = int(input("What's your desired window size in mm?: "))
         
         # Analyze all images
         for i in range(0, number_of_files_in_folder):
@@ -109,6 +111,8 @@ def analyze(filepath):
         
     else: 
         imagepath = getFolderContent(annotatedfolder)
+        
+        window_size = int(input("What's your desired window size in mm?: "))
         
         pixeldata, rpe_line = analysis(imagepath)
 
@@ -244,23 +248,14 @@ bottom_color = (255, 255, 0) # Yellow color for the CSI
 color = top_color  # Start with the top layer color
 brush_size = 1
 
-def draw(image, imagepath, original_filepath, top_color, bottom_color):
+def draw(image, imagepath, original_filepath, top_color, bottom_color, image_set, image_pos):
 
     drawing=False # true if mouse is pressed
     top_color = top_color
     bottom_color = bottom_color
-    
-    color = top_color  # Start with the top layer color
 
-    image = cv2.imread(imagepath)
-    
-        # Add transparent layer to image
-#     transparent_image = np.zeros_like(image, dtype=np.uint8)
-#     overlay = image.copy()
-#     alpha = 0.2  # Opacity of the rectangle (adjust as needed)
-#     print(image.shape)
-#     cv2.rectangle(overlay, (0, 0), (image.shape[1], image.shape[0]), (255, 255, 255), -1)  # Draw the rectangle on the overlay
-#     image = cv2.addWeighted(overlay, alpha, image, 1, 0)
+    im = cv2.imread(imagepath)
+    image = cv2.resize(im, (1920, 1080))      
     
     def draw_lines(event, former_x, former_y, flags, param):
 
@@ -271,6 +266,7 @@ def draw(image, imagepath, original_filepath, top_color, bottom_color):
             current_former_x,current_former_y=former_x,former_y
 
         elif event==cv2.EVENT_MOUSEMOVE:
+#             print(current_former_x, current_former_y)
             if drawing==True:
                 if former_x <= 0 or former_x >= image.shape[1]-1 or former_y <= 0 or former_y >= image.shape[0]-1:
                     drawing = False
@@ -287,18 +283,19 @@ def draw(image, imagepath, original_filepath, top_color, bottom_color):
                 
         elif event==cv2.EVENT_RBUTTONDOWN:
             if color == bottom_color:
-                print('switching color to green')
+#                 print('switching color to green')
                 color = top_color  # switch to green
             else:
                 print('switching color to blue')
                 color = bottom_color  # switch back to blue
                 
+                
             # Overwrite previous display
-            cv2.line(image, (image.shape[1] - 100, 30), (image.shape[1], 30), (0,0,0), 100)
+            cv2.line(image, (image.shape[1] - 100, 30), (image.shape[1], 30), (0,0,0), 60)
             # Update color selection
             indicateActiveColor(color)
 
-        return former_x, former_y, color   
+        return former_x, former_y, color    
     
     def indicateActiveColor(color):
         # Color for the text
@@ -315,10 +312,23 @@ def draw(image, imagepath, original_filepath, top_color, bottom_color):
 
         # Overwrite previous display
         cv2.putText(image, color_info, text_position, cv2.FONT_HERSHEY_SIMPLEX, 1, text_color, 2, cv2.LINE_AA)
+    
+    def indicateImageNumber(image_set, image_pos):
+        # Color for the text
+        text_color = (255, 255, 255)  # white
+
+        # Define the position for the text overlay
+        text_position = (image.shape[1] - 300, 80)
+
+        image_info = f"Image {image_pos+1}/{image_set}"
+
+        # Overwrite previous display
+        cv2.putText(image, image_info, text_position, cv2.FONT_HERSHEY_SIMPLEX, 1, text_color, 2, cv2.LINE_AA)
 
     # Add indicator of active color to the image
     # Set the starting color to red
     indicateActiveColor(color)
+    indicateImageNumber(image_set, image_pos)
     
     cv2.namedWindow("Choroid Measure OpenCV")
     cv2.setMouseCallback('Choroid Measure OpenCV',draw_lines)
@@ -352,7 +362,159 @@ def draw(image, imagepath, original_filepath, top_color, bottom_color):
     print("Annotated file name:", new_image_path)
     
     print("🎉 Your anotated image has been saved!")
+    
+    return color
 
+# +
+# Erase Testing
+drawing=False # true if mouse is pressed
+top_color = (0, 255, 0) # Green color for the RPE
+bottom_color = (255, 255, 0) # Yellow color for the CSI
+color = top_color  # Start with the top layer color
+brush_size = 5
+erase = False
+
+def drawerase(image, imagepath, original_filepath, top_color, bottom_color, image_set, image_pos):
+
+    drawing=False # true if mouse is pressed
+    top_color = top_color
+    bottom_color = bottom_color
+
+    im = cv2.imread(imagepath)
+    image = cv2.resize(im, (1920, 1080))      
+    
+    erase = False
+    
+        # Add transparent layer to image
+#     transparent_image = np.zeros_like(image, dtype=np.uint8)
+#     overlay = image.copy()
+#     alpha = 0.2  # Opacity of the rectangle (adjust as needed)
+#     print(image.shape)
+#     cv2.rectangle(overlay, (0, 0), (image.shape[1], image.shape[0]), (255, 255, 255), -1)  # Draw the rectangle on the overlay
+#     image = cv2.addWeighted(overlay, alpha, image, 1, 0)
+    
+    def draw_lines(event, former_x, former_y, flags, param):
+
+        global current_former_x, current_former_y, drawing, mode, color, erase
+        
+        # Erase feature
+        if erase:
+            pixel_color = image[former_y, former_x]
+            color = (int(pixel_color[0]), int(pixel_color[0]), int(pixel_color[0]))
+            print(pixel_color)
+
+        if event==cv2.EVENT_LBUTTONDOWN:
+            drawing=True
+            current_former_x,current_former_y=former_x,former_y
+
+        elif event==cv2.EVENT_MOUSEMOVE:
+#             print(current_former_x, current_former_y)
+            if drawing==True:
+                if former_x <= 0 or former_x >= image.shape[1]-1 or former_y <= 0 or former_y >= image.shape[0]-1:
+                    drawing = False
+                else:
+                    cv2.line(image, (current_former_x, current_former_y), (former_x, former_y), color, brush_size)
+                    current_former_x = former_x
+                    current_former_y = former_y
+                        
+        elif event==cv2.EVENT_LBUTTONUP:
+            drawing=False
+            cv2.line(image,(current_former_x,current_former_y),(former_x,former_y), color, brush_size)
+            current_former_x = former_x
+            current_former_y = former_y
+                
+        elif event==cv2.EVENT_RBUTTONDOWN:
+            if color == bottom_color:
+#                 print('switching color to green')
+                color = top_color  # switch to green
+    
+                erase = False
+            else:
+                print('switching color to blue')
+#                 color = bottom_color  # switch back to blue
+                
+                erase = True
+                # Build Erase feature - Test, can you erase?
+                
+                
+            # Overwrite previous display
+            cv2.line(image, (image.shape[1] - 100, 30), (image.shape[1], 30), (0,0,0), 60)
+            # Update color selection
+            indicateActiveColor(color)
+
+        return former_x, former_y, color    
+    
+    def indicateActiveColor(color):
+        # Color for the text
+        text_color = (255, 255, 255)  # white
+
+        # Define the position for the text overlay
+        text_position = (image.shape[1] - 300, 30)
+
+        color_info = "Active Color: "
+        if color == top_color:
+            color_info += "Green"
+        elif color == bottom_color:
+            color_info += "Blue"
+
+        # Overwrite previous display
+        cv2.putText(image, color_info, text_position, cv2.FONT_HERSHEY_SIMPLEX, 1, text_color, 2, cv2.LINE_AA)
+    
+    def indicateImageNumber(image_set, image_pos):
+        # Color for the text
+        text_color = (255, 255, 255)  # white
+
+        # Define the position for the text overlay
+        text_position = (image.shape[1] - 300, 80)
+
+        image_info = f"Image {image_pos+1}/{image_set}"
+
+        # Overwrite previous display
+        cv2.putText(image, image_info, text_position, cv2.FONT_HERSHEY_SIMPLEX, 1, text_color, 2, cv2.LINE_AA)
+
+    # Add indicator of active color to the image
+    # Set the starting color to red
+    indicateActiveColor(color)
+    indicateImageNumber(image_set, image_pos)
+    
+    cv2.namedWindow("Choroid Measure OpenCV")
+    cv2.setMouseCallback('Choroid Measure OpenCV',draw_lines)
+    
+    while(1):
+        cv2.imshow('Choroid Measure OpenCV',image)
+        k=cv2.waitKey(1) & 0xFF
+        if k==27:
+            break
+
+    # Wait for a key press
+    cv2.waitKey(0)
+
+    # Close the window
+    cv2.destroyAllWindows()
+
+    # Get file name
+    file_name = os.path.basename(imagepath)
+    file_name_without_extension = os.path.splitext(file_name)[0]
+    
+    # Get file directory
+    directory = "annotated_images/"
+    
+    # Get original file name
+    original_file_name = os.path.basename(original_filepath)
+    original_file_name_without_extension = os.path.splitext(original_file_name)[0] 
+
+    new_image_path = directory + original_file_name_without_extension + "_" +file_name_without_extension + "_annotated.png"
+    cv2.imwrite(new_image_path, image)
+    
+    print("Annotated file name:", new_image_path)
+    
+    print("🎉 Your anotated image has been saved!")
+    
+    return color
+
+
+# +
+# annotate(filepath)
 
 # +
 def get_coordinates_of_pixels(image):
@@ -423,9 +585,7 @@ def analysis(imagepath):
     r_line_coordinates, rpe_line_y_values = getRPE(image)
     
     fovea_index = findFovea(rpe_line_y_values)
-    
-    window_size = int(input("What's your desired window size in mm?: "))
-    
+
     start_index, end_index = selectWindowSize(window_size, fovea_index, image)
     
     # Compute only the selected window
@@ -650,7 +810,7 @@ def createCSV(dataframe, imagepath):
     file_name_without_extension = os.path.splitext(file_name)[0]
 
     # Add "_analysis" to the file name
-    csv_file_name = "csv_data/" + file_name_without_extension + "_analysis.csv"
+    csv_file_name = "csv_data/" + file_name_without_extension + "_analysis_" + window_size + "mm.csv"
 
     print("CSV file name:", csv_file_name)
 
@@ -750,4 +910,76 @@ def getTS():
 # Cut out a window size in the red line that avoids optic nerve, it will either be left or right
 # Overwrite the green line
 # Depth enhanced mode displays the choroid at higher contrast, try to increase contrast of all bottom part of image to analyze
+
+# -
+
+
+# +
+def contrastConversion():
+    # Contrast Testing
+    content = getFolderContent(tempfolder)
+
+    # Contrast Testing
+    image = cv2.imread(content, cv2.IMREAD_COLOR)
+    image = cv2.resize(image, (1920, 1080))   
+    height, width, num_channels = image.shape
+
+    # Pick the lowest point of the fovea to do the contrast conversion
+#     coor, y_values = getRPE(image)
+#     fovea = max(y_values) 
+
+    # Set coordinates for contrast enhancement
+    y_start = 300
+    y_end = y_start + 400
+    x_start = 0
+    x_end = width
+
+    roi = image[y_start:y_end, x_start:x_end]
+
+    roi_gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
+
+    clahe = cv2.createCLAHE(clipLimit=2.8, tileGridSize=(8, 8))
+    roi_enhanced = clahe.apply(roi_gray)
+
+    image[y_start:y_end, x_start:x_end, 0] = roi_enhanced
+    image[y_start:y_end, x_start:x_end, 1] = roi_enhanced
+    image[y_start:y_end, x_start:x_end, 2] = roi_enhanced
+
+    cv2.imshow('Enhanced Image', image)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+    
+# contrastConversion()
+
+
+# -
+
+
+def printPixelOnImage(image):
+    # Callback function to capture mouse events
+    def mouse_callback(event, x, y, flags, param):
+        if event == cv2.EVENT_MOUSEMOVE:
+            pixel_color = image[y, x]
+        elif event == cv2.EVENT_LBUTTONDOWN:
+            pixel_color = image[y, x]
+            print("Hovered Pixel Color (BGR):", pixel_color)
+
+    # Load the image
+    # image = cv2.imread('your_image_path.png')
+
+    # Create a window and set the mouse callback function
+    cv2.namedWindow('Image')
+    cv2.setMouseCallback('Image', mouse_callback)
+
+    while True:
+        cv2.imshow('Image', image)
+        key = cv2.waitKey(1)
+
+        # Press 'Esc' to exit
+        if key == 27:
+            break
+
+    cv2.destroyAllWindows()
+# printPixelOnImage(image)
+
 
