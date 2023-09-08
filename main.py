@@ -621,7 +621,7 @@ def findFovea(array):
     indices = np.where(short_array == minimum)[0]
     middle_index = indices[len(indices) // 2] + start_index
     
-    print("Fovea position: ", middle_index)
+    print("Fovea x-position: ", middle_index)
     
     return middle_index
 
