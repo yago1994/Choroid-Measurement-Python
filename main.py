@@ -8,9 +8,9 @@ TS = 0.012007717043161392
 
 filepath = extract()
 
-annotate(filepath)
+data = annotate(filepath)
 
-analyze(filepath)                                                  
+analyze(filepath, data)                                                  
 
 import cv2
 import numpy as np
@@ -30,11 +30,12 @@ csvfolder = "csv_data"
 filepath = ""
 TS = 0
 top_color = (0, 255, 0) # Green color for the RPE
-bottom_color = (255, 255, 0) # Yellow color for the CSI
+bottom_color = (255, 255, 0) # Blue color for the CSI
 color = top_color  # Start with the top layer color
 window_size = 0
 original_image_width = 0
 window_sizes = [1,3,6]
+data_arrays = []
 
 
 def extract():
@@ -66,7 +67,11 @@ def annotate(filepath):
             if i == 0:
                 drawInstructions()
 
-            end_color = draw(imagepath, filepath, top_color, bottom_color, number_of_files_in_folder, i)
+            rpe_array, sci_array = draw(imagepath, filepath, top_color, bottom_color, number_of_files_in_folder, i)
+            
+            # Add data to the dictionary and to function return
+            image_data = {'image_code': image, 'rpe': rpe_array, 'sci': sci_array}
+            data_arrays.append(image_data)
                     
         print("\n🎉🎉🎉 All images have been analyzed!")
         
@@ -77,10 +82,16 @@ def annotate(filepath):
         
         drawInstructions()
 
-        draw(imagepath, filepath, top_color, bottom_color, 1, 0)
+        rpe_array, sci_array = draw(imagepath, filepath, top_color, bottom_color, 1, 0)
+        
+        # Add data to the dictionary and to function return
+        image_data = {'image_code': image, 'rpe': rpe_array, 'sci': sci_array}
+        data_arrays.append(image_data)
+        
+    return data_arrays
 
 
-def analyze(filepath):
+def analyze(filepath, previous_data = []):
     global window_size
     
     number_of_files_in_folder = len(os.listdir(annotatedfolder))
@@ -94,70 +105,100 @@ def analyze(filepath):
     dataframes = []
     
     if number_of_files == 'y':
-        
-        # Create an empty dataframe before the loop
-        combined_dataframe = pd.DataFrame()
-        
-        # Define window size
-        window_size = int(input("What's your desired window size in mm?: "))
-        
-        # ⚠️ NEED TO EDIT THIS FOR THE ADDING TO EXCEL PIECE -> Potentially return the dataframes or dataframe object and pass that to another function
-        
+
         # Analyze all images
         for i in range(0, number_of_files_in_folder):
             [file, imagepath] = extractImage(i, contents, annotatedfolder)
-                        
-            pixeldata, rpe_line = analysis(imagepath)
-    
-            data = createDataFrame(pixeldata, rpe_line, filepath)
+
+            # -> Get retina line & fovea position
+            print(f"Locating Retina layer for {imagepath}")
+            image = cv2.imread(imagepath)
+            _, retina_y_values = getRetina(image)
+
+            # -> Add retina & fovea position to dictionary
+            index = findDataArrayElement(data_arrays, imagepath)
+            data_arrays[index]["retina"] = retina_y_values
+            data_arrays[index]["fovea"] = findFovea(retina_y_values)
+
+            if not previous_data:
+                # -> Add choroid & retina to dictionary
+                # ⚠️ NEEDS TESTING OF ANALYSIS FUNCTION ⚠️
+
+                print("Running general analysis with new image")
+                rpe_line, sci_line, retina_line = analysis(imagepath)
+                data_arrays[index]["rpe"] = rpe_line
+                data_arrays[index]["sci"] = sci_line
         
-            # Append the data to the combined_dataframe
-            combined_dataframe = pd.concat([combined_dataframe, data], axis=1, ignore_index=True)
+        # -> raw
+        # -> loop through dictionary
+        
+        # -> window sizes
+        for window in window_sizes:
+            window_size = window
+            print(f"Analyzing at {window_size} mm")
+            
+            # Create an empty dataframe before the loop
+            combined_dataframe = pd.DataFrame()
+
+            # -> loop through dictionary
+            for entry in data_arrays:
+                retina_line, choroid_thickness = getEyeParametersFromDictionary(entry)
+
+                data = createDataFrame(choroid_thickness, retina_line, entry['image_code'])
+
+                # Append the data to the combined_dataframe
+                combined_dataframe = pd.concat([combined_dataframe, data], axis=1)
+
+            dataframes.append(combined_dataframe)
 
         print("\n🎉🎉🎉 All images have been analyzed!")
         
     else: 
         imagepath = getFolderContent(annotatedfolder)
+        
+        # -> Get retina line
+        print(f"Locating Retina layer for {imagepath}")
+        image = cv2.imread(imagepath)
+        _, retina_y_values = getRetina(image)
+        
+        # -> Add retina & fovea position to dictionary
+        index = findDataArrayElement(data_arrays, imagepath)
+        data_arrays[index]["retina"] = retina_y_values
+        data_arrays[index]["fovea"] = findFovea(retina_y_values)
+        
+        if not previous_data:
+            print("Running general analysis with new image")
+            # ⚠️ NEEDS TESTING OF ANALYSIS FUNCTION ⚠️
+            rpe_line, sci_line, retina_line = analysis(imagepath)
+            data_arrays[index]["rpe"] = rpe_line
+            data_arrays[index]["sci"] = sci_line
 
-        for i in range(0,len(window_sizes)):
-            window_size = window_sizes[i]
-            
-            pixeldata, rpe_line = analysis(imagepath)
+        for window in window_sizes:
+            window_size = window
+            print(f"Analyzing at {window_size} mm")
+                
+            retina_line, choroid_thickness = getEyeParametersFromDictionary(data_arrays[index])
 
-            combined_dataframe = createDataFrame(pixeldata, rpe_line, filepath)
+            combined_dataframe = createDataFrame(choroid_thickness, retina_line, filepath)
             
             dataframes.append(combined_dataframe)
-            
-            print(f"Analyzing at {window_size} mm")
+    
+    # Add Raw data
+    combined_dataframe = pd.DataFrame()
+    
+    for entry in data_arrays:
+        choroid_thickness = [entry['sci'][x] - entry['rpe'][x] for x in range(0, 1920)]
         
+        data = createDataFrame(choroid_thickness, entry['retina'], entry['image_code'])
+        
+        combined_dataframe = pd.concat([combined_dataframe, data], axis=1)
+        
+    dataframes.append(combined_dataframe)
+                    
     createExcel(dataframes, filepath)
 
 
-def getFolderContent(directory):
-    print(f'Here is a list of folders in the {directory} directory')
-    
-    entries = showFolderContents(directory)
-    
-    time.sleep(0.2)
-    
-    user_selection = input('Indicate which file/folder you want to open: ')
-        
-    folder = entries[int(user_selection)]
-    
-    # Get the base name of the file
-#     file_name = os.path.basename(image_path)
-#     directory = os.path.dirname(image_path)
-    
-    path = directory + '/' + folder
-    
-    return path 
-
-
-def deleteFolderContent(directory):
-    # Delete everything in folder
-    for f in os.listdir(directory):
-        os.remove(os.path.join(directory, f))
-
+# # Heyex Analysis
 
 def loadImagesInFolder(filepath):
     
@@ -193,6 +234,8 @@ def loadImagesInFolder(filepath):
     print(f"🎉 The images have been extracted into /{tempfolder}")
 
 
+# # Folder handling: find, retrieve, return
+
 def showFolderContents(selectedfolder):
 
     entries = os.listdir(selectedfolder)
@@ -204,28 +247,25 @@ def showFolderContents(selectedfolder):
     return entries
 
 
-# +
-# imagepath = 'temp_data/oct-001.png'
-# image = cv2.imread(imagepath)
-# print(image.shape, image.dtype)
+def getFolderContent(directory):
+    print(f'Here is a list of folders in the {directory} directory')
+    
+    entries = showFolderContents(directory)
+    
+    time.sleep(0.2)
+    
+    user_selection = input('Indicate which file/folder you want to open: ')
+        
+    folder = entries[int(user_selection)]
+    
+    # Get the base name of the file
+#     file_name = os.path.basename(image_path)
+#     directory = os.path.dirname(image_path)
+    
+    path = directory + '/' + folder
+    
+    return path
 
-# # b, g, r = cv2.split(image)
-# # rgb_image = cv2.merge([b, g, r])
-# print(image)
-# # cv2.imshow("RGB Image", image)
-
-# # Extract the desired channel
-# channel_index = 2  # Replace 0 with the index of the channel you want to view
-# channel_image = rgb_image[:, :, channel_index]
-
-# print(channel_image.shape,channel_image.dtype)
-
-# # Display the channel image
-# # Assuming the image is in BGR format
-# # cv2.imshow("RGB Image", channel_image)
-# cv2.waitKey(0)
-# cv2.destroyAllWindows()
-# -
 
 def extractImage(user_selection, entries, folder):
         
@@ -235,6 +275,14 @@ def extractImage(user_selection, entries, folder):
     
     return image, imagepath
 
+
+def deleteFolderContent(directory):
+    # Delete everything in folder
+    for f in os.listdir(directory):
+        os.remove(os.path.join(directory, f))
+
+
+# # Draw Functions
 
 def drawInstructions():
     
@@ -262,9 +310,12 @@ colors = [top_color, bottom_color, fovea_color]
 color = top_color  # Start with the top layer color
 color_index = 0
 brush_size = 1
+# Create Array for y-coordinate pixels
+choroid_sclera_coordinates = []
+rpe_coordinates = []
 
 def draw(imagepath, original_filepath, top_color, bottom_color, image_set, image_pos):
-    global original_image_width
+    global original_image_width, choroid_sclera_coordinates, rpe_coordinates
     
     drawing=False # true if mouse is pressed
     top_color = top_color
@@ -278,7 +329,23 @@ def draw(imagepath, original_filepath, top_color, bottom_color, image_set, image
     # Get original image width and store in variable
     original_image_width = im.shape[1]
     
-    image = cv2.resize(im, (1920, 1080))      
+    image = cv2.resize(im, (1920, 1080))  
+    
+    # Create Array for y-coordinate pixels
+    choroid_sclera_coordinates = [0] * image.shape[1]
+    rpe_coordinates = [0] * image.shape[1]
+    
+    # Replace with new coordinates
+    _, rpe_coordinates = getOriginalRPELine(image)
+    
+    #####
+    
+    
+    # ⚠️ This line replaces the original RPE line, to verify with Linjiang
+    redrawOriginalRPE(image, rpe_coordinates)
+    
+    
+    #####
     
     def draw_lines(event, former_x, former_y, flags, param):
 
@@ -289,20 +356,22 @@ def draw(imagepath, original_filepath, top_color, bottom_color, image_set, image
             current_former_x,current_former_y=former_x,former_y
 
         elif event==cv2.EVENT_MOUSEMOVE:
-#             print(current_former_x, current_former_y)
             if drawing==True:
                 if former_x <= 0 or former_x >= image.shape[1]-1 or former_y <= 0 or former_y >= image.shape[0]-1:
                     drawing = False
                 else:
-                    cv2.line(image, (current_former_x, current_former_y), (former_x, former_y), color, brush_size)
-                    current_former_x = former_x
-                    current_former_y = former_y
-                        
+                    if former_x > current_former_x:
+                        # This only works if we go left to right
+                        drawPoint(image, current_former_x, former_x, former_y, color)
+
+                        current_former_x = former_x
+                        current_former_y = former_y
+
+
         elif event==cv2.EVENT_LBUTTONUP:
             drawing=False
-            cv2.line(image,(current_former_x,current_former_y),(former_x,former_y), color, brush_size)
-            current_former_x = former_x
-            current_former_y = former_y
+            if color_index == 2:
+                cv2.circle(image, (former_x, former_y), 5, color, -1)
                 
         elif event==cv2.EVENT_RBUTTONDOWN:
             # Increment the index
@@ -315,22 +384,15 @@ def draw(imagepath, original_filepath, top_color, bottom_color, image_set, image
             if color_index == 2:
                 brush_size = 5
             else:
-                brush_size = 1
+                brush_size = 0
 
             # Get the next color from the list
             color = colors[color_index]
 
-            print('Switching color to', color)
-#             if color == bottom_color:
-# #                 print('switching color to green')
-#                 color = top_color  # switch to green
-#             else:
-#                 print('switching color to blue')
-#                 color = bottom_color  # switch back to blue
-                
+#             print('Switching color to', color)
                 
             # Overwrite previous display
-            cv2.line(image, (image.shape[1] - 100, 30), (image.shape[1], 30), (0,0,0), 60)
+            cv2.line(image, (image.shape[1] - 150, 30), (image.shape[1], 30), (0,0,0), 60)
             # Update color selection
             indicateActiveColor(color)
 
@@ -341,7 +403,7 @@ def draw(imagepath, original_filepath, top_color, bottom_color, image_set, image
         text_color = (255, 255, 255)  # white
 
         # Define the position for the text overlay
-        text_position = (image.shape[1] - 300, 30)
+        text_position = (image.shape[1] - 350, 30)
 
         color_info = "Active Color: "
         if color == top_color:
@@ -359,159 +421,51 @@ def draw(imagepath, original_filepath, top_color, bottom_color, image_set, image
         text_color = (255, 255, 255)  # white
 
         # Define the position for the text overlay
-        text_position = (image.shape[1] - 300, 80)
+        text_position = (image.shape[1] - 350, 80)
 
         image_info = f"Image {image_pos+1}/{image_set}"
 
         # Overwrite previous display
         cv2.putText(image, image_info, text_position, cv2.FONT_HERSHEY_SIMPLEX, 1, text_color, 2, cv2.LINE_AA)
-
-    # Add indicator of active color to the image
-    # Set the starting color to red
-    indicateActiveColor(color)
-    indicateImageNumber(image_set, image_pos)
-    
-    cv2.namedWindow("Choroid Measure OpenCV")
-    cv2.setMouseCallback('Choroid Measure OpenCV',draw_lines)
-    
-    while(1):
-        cv2.imshow('Choroid Measure OpenCV',image)
-        k=cv2.waitKey(1) & 0xFF
-        if k==27:
-            break
-
-    # Wait for a key press
-    cv2.waitKey(0)
-
-    # Close the window
-    cv2.destroyAllWindows()
-
-    # Get file name
-    file_name = os.path.basename(imagepath)
-    file_name_without_extension = os.path.splitext(file_name)[0]
-    
-    # Get file directory
-    directory = "annotated_images/"
-    
-    # Get original file name
-    original_file_name = os.path.basename(original_filepath)
-    original_file_name_without_extension = os.path.splitext(original_file_name)[0] 
-
-    new_image_path = directory + original_file_name_without_extension + "_" +file_name_without_extension + "_annotated.png"
-    cv2.imwrite(new_image_path, image)
-    
-    print("Annotated file name:", new_image_path)
-    
-    print("🎉 Your anotated image has been saved!")
-    
-    return color
-
-# +
-# Erase Testing
-drawing=False # true if mouse is pressed
-top_color = (0, 255, 0) # Green color for the RPE
-bottom_color = (255, 255, 0) # Yellow color for the CSI
-color = top_color  # Start with the top layer color
-brush_size = 5
-erase = False
-
-def drawerase(image, imagepath, original_filepath, top_color, bottom_color, image_set, image_pos):
-
-    drawing=False # true if mouse is pressed
-    top_color = top_color
-    bottom_color = bottom_color
-
-    im = cv2.imread(imagepath)
-    image = cv2.resize(im, (1920, 1080))      
-    
-    erase = False
-    
-        # Add transparent layer to image
-#     transparent_image = np.zeros_like(image, dtype=np.uint8)
-#     overlay = image.copy()
-#     alpha = 0.2  # Opacity of the rectangle (adjust as needed)
-#     print(image.shape)
-#     cv2.rectangle(overlay, (0, 0), (image.shape[1], image.shape[0]), (255, 255, 255), -1)  # Draw the rectangle on the overlay
-#     image = cv2.addWeighted(overlay, alpha, image, 1, 0)
-    
-    def draw_lines(event, former_x, former_y, flags, param):
-
-        global current_former_x, current_former_y, drawing, mode, color, erase
         
-        # Erase feature
-        if erase:
-            pixel_color = image[former_y, former_x]
-            color = (int(pixel_color[0]), int(pixel_color[0]), int(pixel_color[0]))
-            print(pixel_color)
-
-        if event==cv2.EVENT_LBUTTONDOWN:
-            drawing=True
-            current_former_x,current_former_y=former_x,former_y
-
-        elif event==cv2.EVENT_MOUSEMOVE:
-#             print(current_former_x, current_former_y)
-            if drawing==True:
-                if former_x <= 0 or former_x >= image.shape[1]-1 or former_y <= 0 or former_y >= image.shape[0]-1:
-                    drawing = False
-                else:
-                    cv2.line(image, (current_former_x, current_former_y), (former_x, former_y), color, brush_size)
-                    current_former_x = former_x
-                    current_former_y = former_y
-                        
-        elif event==cv2.EVENT_LBUTTONUP:
-            drawing=False
-            cv2.line(image,(current_former_x,current_former_y),(former_x,former_y), color, brush_size)
-            current_former_x = former_x
-            current_former_y = former_y
-                
-        elif event==cv2.EVENT_RBUTTONDOWN:
-            if color == bottom_color:
-#                 print('switching color to green')
-                color = top_color  # switch to green
+    def drawPoint(image, current_former_x, former_x, former_y, color):
     
-                erase = False
-            else:
-                print('switching color to blue')
-#                 color = bottom_color  # switch back to blue
-                
-                erase = True
-                # Build Erase feature - Test, can you erase?
-                
-                
-            # Overwrite previous display
-            cv2.line(image, (image.shape[1] - 100, 30), (image.shape[1], 30), (0,0,0), 60)
-            # Update color selection
-            indicateActiveColor(color)
+        global choroid_sclera_coordinates, rpe_coordinates
 
-        return former_x, former_y, color    
+        for x_pixels in range(current_former_x, former_x+1):
+            pix_color = image[former_y, x_pixels]
+            
+            if color == top_color:
+                add_color =(int(pix_color[0]), 255, int(pix_color[0]))
+
+                # Erase Method
+                if rpe_coordinates[x_pixels] != 0:
+                    original_pixel = image[rpe_coordinates[x_pixels],x_pixels]
     
-    def indicateActiveColor(color):
-        # Color for the text
-        text_color = (255, 255, 255)  # white
+                    print("erasing!")
+                    old_color = (int(original_pixel[0]), int(original_pixel[0]), int(original_pixel[0]))
+                    cv2.circle(image, (x_pixels, rpe_coordinates[x_pixels]), 0, old_color, -1)
 
-        # Define the position for the text overlay
-        text_position = (image.shape[1] - 300, 30)
+                rpe_coordinates[x_pixels] = former_y
 
-        color_info = "Active Color: "
-        if color == top_color:
-            color_info += "Green"
-        elif color == bottom_color:
-            color_info += "Blue"
+                cv2.circle(image, (x_pixels, rpe_coordinates[x_pixels]), 0, add_color, -1)
+            elif color == bottom_color: 
+                add_color =(255, 255, int(pix_color[2]))
 
-        # Overwrite previous display
-        cv2.putText(image, color_info, text_position, cv2.FONT_HERSHEY_SIMPLEX, 1, text_color, 2, cv2.LINE_AA)
-    
-    def indicateImageNumber(image_set, image_pos):
-        # Color for the text
-        text_color = (255, 255, 255)  # white
+                # Erase Method
+                if choroid_sclera_coordinates[x_pixels] != 0:
+                    original_pixel = image[choroid_sclera_coordinates[x_pixels],x_pixels]
 
-        # Define the position for the text overlay
-        text_position = (image.shape[1] - 300, 80)
+                    old_color = (int(original_pixel[2]), int(original_pixel[2]), int(original_pixel[2]))
+                    cv2.circle(image, (x_pixels, choroid_sclera_coordinates[x_pixels]), 0, old_color, -1)
 
-        image_info = f"Image {image_pos+1}/{image_set}"
+                choroid_sclera_coordinates[x_pixels] = former_y
 
-        # Overwrite previous display
-        cv2.putText(image, image_info, text_position, cv2.FONT_HERSHEY_SIMPLEX, 1, text_color, 2, cv2.LINE_AA)
+                cv2.circle(image, (x_pixels, choroid_sclera_coordinates[x_pixels]), 0, add_color, -1)
+#             else:
+#                 add_color =(int(pix_color[0]), 255, 255)
+#                 cv2.circle(image, (x_pixels, former_y), 5, add_color, -1)
+                
 
     # Add indicator of active color to the image
     # Set the starting color to red
@@ -551,94 +505,133 @@ def drawerase(image, imagepath, original_filepath, top_color, bottom_color, imag
     
     print("🎉 Your anotated image has been saved!")
     
-    return color
+    return rpe_coordinates, choroid_sclera_coordinates
 
+
+# -
+
+def redrawOriginalRPE(image, rpe_coordinates):
+    for i in range(0, len(rpe_coordinates)):
+        pixel_y_position = rpe_coordinates[i]
+
+        # Range is 7 because that seems to be the size of the effect
+        for j in range(0,7):
+            pixel_color = image[pixel_y_position+j, i]
+            old_color = (int(pixel_color[0]), int(pixel_color[0]), int(pixel_color[0]))
+
+            if j == 2:
+                add_color =(int(pixel_color[0]), 255, int(pixel_color[0]))
+
+            cv2.circle(image, (i, pixel_y_position+j), 0, old_color, -1)
+
+        # Redraw with full color
+        cv2.circle(image, (i, pixel_y_position+2), 0, add_color, -1)
+        rpe_coordinates[i] = pixel_y_position+2
+
+
+# # Analysis
 
 # +
-# annotate(filepath)
-
-# +
-def get_coordinates_of_pixels(image):
-    
-    # Format should be like this
-#     bottom_color = red
-#     top_color = green
-    
-    coordinates = []
-
-    # Get the shape of the image
-#     image_shape = image.shape
+# ✅
+def quick_analysis(imagepath, data_array):
+    # quick_analysis uses the generated array from the drawing function, can only be used if the draw function was used
+    image = cv2.imread(imagepath)
     height, width, _ = image.shape
 
-    min_y_coordinates = [height] * width
-    max_y_coordinates = [0] * width
+    _, retina_y_values = getRetina(image)
     
-    add_y_value_for_missing_x_coordinate = True
+    fovea_index = findFovea(retina_y_values)
 
-    for x in range(width):
-        for y in range(height):
-            # Get the color of the pixel at the current coordinates
-            pixel_color = image[y, x]
-            
-            # Check if the pixel color matches the target color
-            if np.array_equal(pixel_color, top_color) or np.array_equal(pixel_color, bottom_color):
-                # If it matches, add the coordinates to the list
-                coordinates.append((x, y))
-                if np.array_equal(pixel_color, bottom_color):
-                    max_y_coordinates.append(max(max_y_coordinates[x], y))
-                elif np.array_equal(pixel_color, top_color):
-                    min_y_coordinates.append(min(min_y_coordinates[x], y))
-                    
-                add_y_value_for_missing_x_coordinate = False
-                    
-        if add_y_value_for_missing_x_coordinate:
-            max_y_coordinates.append(0)
-            min_y_coordinates.append(0)
+    start_index, end_index = selectWindowSize(window_size, fovea_index, image)
+    
+    # Compute only the selected window
+    window_retina_line_y_values = retina_y_values[start_index: end_index]
+    
+    window_size_scaled = end_index - start_index
+    
+    # Compute differences in coordinates from top to bottom
+    y_diffs = [data_array['sci'][start_index:end_index][x] - data_array['rpe'][start_index:end_index][x] for x in range(window_size_scaled)]
         
-        add_y_value_for_missing_x_coordinate = True
+    return y_diffs, window_retina_line_y_values
 
-    return coordinates, min_y_coordinates, max_y_coordinates
-
-
+# 🤔 (TBD)
 def analysis(imagepath):
     image = cv2.imread(imagepath)
     height, width, _ = image.shape
-#     print("Height of image is", height)
-#     print("Width of image is", width)
-    bottom_color = (0, 0, 255)
+
+# ⚠️⚠️⚠️ COLORS NEED TO BE ADJUSTED FOR ONGOING COLORS SINCE IT'S NO LONGER PURE RGB GREEN AND BLUE
+    bottom_color = (255, 255, 0)
     top_color = (0, 255, 0)
 
 #     coordinates, min_y_coordinates, max_y_coordinates = get_coordinates_of_pixels(image)
 
 #     y_diffs = [max_y_coordinates[x] - min_y_coordinates[x] for x in range(width)]
 
-    r_line_coordinates, rpe_line_y_values = getRPE(image)
+    _, retina_y_values = getRetina(image)
     
-    ogtopcoords, ogtop_choroid_y_value = getOriginalChoroidLine(image)
+    _, rpe_y_value = getOriginalRPELine(image)
     
-    topcoords, top_choroid_y_value = getTopChoroidLine(image)
+    _, top_choroid_y_value = getChoroidLine(image, top_color)
     
-    bcoords, bottom_choroid_y_value = getBottomChoroidLine(image)
+    _, bottom_choroid_y_value = getChoroidLine(image, bottom_color)
     
     # Compute differences in coordinates from top to bottom
     y_diffs = [bottom_choroid_y_value[x] - top_choroid_y_value[x] for x in range(width)]
         
-    fovea_index = findFovea(rpe_line_y_values)
+    fovea_index = findFovea(retina_y_values)
 
-    start_index, end_index = selectWindowSize(window_size, fovea_index, image)
+    if window_size != 0:
+        start_index, end_index = selectWindowSize(window_size, fovea_index, image)
+    
+        # Compute only the selected window
+        window_retina_line_y_values = retina_y_values[start_index: end_index]
+
+        window_size_scaled = end_index - start_index
+
+        # Compute differences in coordinates from top to bottom
+        y_diffs = [bottom_choroid_y_value[start_index:end_index][x] - top_choroid_y_value[start_index:end_index][x] for x in range(window_size_scaled)]
+    else:
+        # Compute differences in coordinates from top to bottom
+        y_diffs = [bottom_choroid_y_value[x] - top_choroid_y_value[x] for x in range(width)]
+    
+    return top_choroid_y_value, bottom_choroid_y_value, window_retina_line_y_values
+
+
+# -
+# # Data Dictionary Handling
+
+# +
+def findDataArrayElement(array, target_image_code):
+
+    index = 0
+    # Iterate through the list and check the 'name' key in each dictionary
+    for i in range(0, len(array)):
+        entry_without_extension = array[i]['image_code'][:-4]
+        if entry_without_extension in target_image_code:
+            print(f"Entry {entry_without_extension}")
+            index = i
+            break
+            
+    return index
+
+def getEyeParametersFromDictionary(entry):
+    start_index, end_index = selectWindowSize(window_size, entry['fovea'])
     
     # Compute only the selected window
-    window_rpe_line_y_values = rpe_line_y_values[start_index: end_index]
+    window_retina_line_y_values = entry['retina'][start_index: end_index]
     
     window_size_scaled = end_index - start_index
     
     # Compute differences in coordinates from top to bottom
-    y_diffs = [bottom_choroid_y_value[start_index:end_index][x] - top_choroid_y_value[start_index:end_index][x] for x in range(window_size_scaled)]
+    choroid_thickness = [entry['sci'][start_index:end_index][x] - entry['rpe'][start_index:end_index][x] for x in range(window_size_scaled)]
         
-    return y_diffs, window_rpe_line_y_values
+    return window_retina_line_y_values, choroid_thickness
 
 
 # -
+
+# # Identify window size for analysis
+
 # Find the Min of the RPE Line
 def findFovea(array):
     # Ignore 1/4 on each side of the array to count for optic nerve
@@ -650,15 +643,16 @@ def findFovea(array):
     indices = np.where(short_array == minimum)[0]
     middle_index = indices[len(indices) // 2] + start_index
     
-    print("Middle index:", middle_index)
+    print("Fovea position: ", middle_index)
     
     return middle_index
 
 
 # window_size : in millimiters
-def selectWindowSize(window_size, fovea_index, image):
+def selectWindowSize(window_size, fovea_index):
     
-    height, width, _ = image.shape
+    # ⚠️ with different images this needs to be changed
+    width = 1920
     
     # New TS as computed by the extension of the original image
     TS_corrected = (TS * original_image_width) / width
@@ -681,22 +675,9 @@ def selectWindowSize(window_size, fovea_index, image):
     return start_index, end_index
 
 
-# +
-# imagepath = 'annotated_images/TEST_T_2713_oct-003_annotated.png'
-# image = cv2.imread(imagepath)
-# print(image.shape)
-# [coord, y_values] = getOriginalChoroidLine(image)
-# print(y_values)
-# print(image)
-# cv2.imshow('Choroid Measure OpenCV',image)
-# # Wait for a key press
-# cv2.waitKey(0)
+# # Find colored lines in the image
 
-# # # Close the window
-# cv2.destroyAllWindows()
-# -
-
-def getRPE(image):
+def getRetina(image):
     coordinates = []
     y_values = []
 
@@ -713,7 +694,7 @@ def getRPE(image):
             # Get the color of the pixel at the current coordinates
             pixel_color = image[y, x]
             
-            # Remove requirement for pure red (0,0,255)
+            # Remove requirement for pure red (0,0,255) 🟥
             if (pixel_color[2] > pixel_color[0]) and (pixel_color[2] > pixel_color[1]) and (pixel_color[0] == pixel_color[1]):
                 # If it matches, add the coordinates to the list
                 coordinates.append((x, y))
@@ -734,7 +715,7 @@ def getRPE(image):
     return coordinates, y_values
 
 
-def getOriginalChoroidLine(image):
+def getOriginalRPELine(image):
     coordinates = []
     y_values = []
 
@@ -751,8 +732,9 @@ def getOriginalChoroidLine(image):
             # Get the color of the pixel at the current coordinates
             pixel_color = image[y, x]
 
-            # Avoid the same green color that we draw manually
-            if pixel_color[1] == 255 and np.not_equal(pixel_color, top_color).any() and np.not_equal(pixel_color, bottom_color).any():
+            # ⚠️👀 Potential for an issue if there is a rogue green pixel somewhere
+            
+            if pixel_color[0] < pixel_color[1] and pixel_color[2] < pixel_color[1] and pixel_color[0] == pixel_color[2]:
                 # If it matches, add the coordinates to the list
                 coordinates.append((x, y))
                 y_values.append(y)
@@ -766,8 +748,15 @@ def getOriginalChoroidLine(image):
 
     return coordinates, y_values
 
+# +
+########
 
-def getTopChoroidLine(image):
+
+# ⚠️ THIS FUNCTION IS INACTIVE UNLESS IT CAN DETECT BLENDED COLORS BETWEEN TARGET COLOR AND BACKGROUND IMAGE COLOR
+
+
+########
+def getChoroidLine(image, line_color):
     coordinates = []
     y_values = []
 
@@ -785,7 +774,8 @@ def getTopChoroidLine(image):
             pixel_color = image[y, x]
             
             # Avoid the same green color that we draw manually
-            if np.equal(pixel_color, top_color).all():
+#             if np.equal(pixel_color, line_color).all():
+            if detectPixelMatch(pixel_color, line_color):
                 # If it matches, add the coordinates to the list
                 coordinates.append((x, y))
                 y_values.append(y)
@@ -800,47 +790,27 @@ def getTopChoroidLine(image):
     return coordinates, y_values
 
 
-def getBottomChoroidLine(image):
-    coordinates = []
-    y_values = []
+# -
 
-    # Get the shape of the image
-    height, width, _ = image.shape
-
-    min_y_coordinates = [height] * width
-    max_y_coordinates = [0] * width
-    
-    add_y_value_for_missing_x_coordinate = True
-
-    for x in range(width):
-        for y in range(height):
-            # Get the color of the pixel at the current coordinates
-            pixel_color = image[y, x]
-            
-            # Avoid the same green color that we draw manually
-            if np.equal(pixel_color, bottom_color).all():
-                # If it matches, add the coordinates to the list
-                coordinates.append((x, y))
-                y_values.append(y)
-                add_y_value_for_missing_x_coordinate = False
-                break
-        
-        if add_y_value_for_missing_x_coordinate:
-            y_values.append(0)
-        
-        add_y_value_for_missing_x_coordinate = True
-
-    return coordinates, y_values
+def detectPixelMatch(incoming_pixel, target_color):
+    if target_color == top_color:
+        # logic for detecting green
+        if incoming_pixel[0] == incoming_pixel[2] and incoming_pixel[1] > incoming_pixel[0] and incoming_pixel[1] == 255:
+            return true
+    elif target_color == bottom_color:
+        # logic for detecting blue
+        if incoming_pixel[0] == incoming_pixel[1] and incoming_pixel[1] > incoming_pixel[2] and incoming_pixel[1] == 255:
+            return true
 
 
-def createDataFrame(choroid_top_line, rpe_line, filepath):
-    filename = os.path.basename(filepath)
-    
+# # Dataframe generation and saving to a CSV/Excel 
+
+def createDataFrame(choroid_thickness, retina_line, filename):
     # Convert the list to a DataFrame
     df = pd.DataFrame()
     
-    df['RPE Coordinates'] = rpe_line
-    df['Top Choroid Coordinates'] = choroid_top_line
+    df['Retina Coordinates_'+filename] = retina_line
+    df['Choroid Thickness_'+filename] = choroid_thickness
     
     return df
 
@@ -879,16 +849,22 @@ def createExcel(dataframes, imagepath):
     # Create the Excel writer object
     writer = pd.ExcelWriter(filename, engine='xlsxwriter')
 
-    for i, dataframe in enumerate(dataframes):
+    for i, dataframe in enumerate(dataframes[:-1]):
         sheet_name = str(window_sizes[i])+"mm"
         # Write the dataframe to a sheet in the Excel file
         dataframe.to_excel(writer, sheet_name=sheet_name, index=False)
+    
+    sheet_name = "Raw Data"
+    # Write the dataframe to a sheet in the Excel file
+    dataframes[-1].to_excel(writer, sheet_name=sheet_name, index=False)
 
     # Save the Excel file
     writer.save()
 
     print("🎉 Your analysis file has been saved!")
 
+
+# # Get TS Scaling
 
 def getTS():
 
@@ -982,6 +958,8 @@ def getTS():
 # Depth enhanced mode displays the choroid at higher contrast, try to increase contrast of all bottom part of image to analyze
 
 # -
+# # (unused) Image handling: Cutting excess & Contrast conversion
+
 def trimmExcessImage(imagepath):
     image = cv2.imread(imagepath)
     
@@ -1037,6 +1015,8 @@ def contrastConversion():
 # -
 
 
+# # Code to make testing easier
+
 def printPixelOnImage(image):
     
     image = cv2.imread("annotated_images/TEST_T_2731_0_oct-000_annotated.png")
@@ -1066,5 +1046,157 @@ def printPixelOnImage(image):
 
     cv2.destroyAllWindows()
 # printPixelOnImage(image)
+
+
+# # Playground
+
+# +
+drawing=False # true if mouse is pressed
+top_color = top_color
+bottom_color = bottom_color
+
+# Initialize the index
+color_index = 0
+colors = [top_color, bottom_color]
+
+im = cv2.imread("temp_data/oct-000.png")
+image = cv2.resize(im, (1920, 1080))    
+
+# Create Array for y-coordinate pixels
+choroid_sclera_coordinates = [0] * image.shape[1]
+rpe_coordinates = [0] * image.shape[1]
+
+
+_, rpe_coordinates = getOriginalRPELine(image)
+
+# ⚠️ TEST IF THIS IS DESIRED!
+redrawOriginalRPE(image, rpe_coordinates)
+
+def draw_lines(event, former_x, former_y, flags, param):
+
+    global current_former_x, current_former_y, drawing, mode, color, color_index
+
+    if event==cv2.EVENT_LBUTTONDOWN:
+        drawing=True
+        current_former_x,current_former_y=former_x,former_y
+
+    elif event==cv2.EVENT_MOUSEMOVE:
+        if drawing==True:
+            if former_x <= 0 or former_x >= image.shape[1]-1 or former_y <= 0 or former_y >= image.shape[0]-1:
+                drawing = False
+            else:
+                if former_x > current_former_x:
+                    # This only works if we go left to right
+                    drawPoint(image, current_former_x, former_x, former_y, color)
+            
+                    current_former_x = former_x
+                    current_former_y = former_y
+                
+
+    elif event==cv2.EVENT_LBUTTONUP:
+        drawing=False
+
+    elif event==cv2.EVENT_RBUTTONDOWN:
+        print(former_y, former_x)
+        print(image[former_y,former_x])
+        
+        # Clean up Original RPE
+        # ⚠️ TEST IF THIS IS DESIRED!
+#         redrawOriginalRPE(image, rpe_coordinates)
+        
+        # Increment the index
+        color_index += 1
+
+        # If the index is at the end of the list, reset it to 0
+        if color_index == len(colors):
+            color_index = 0
+
+        # Get the next color from the list
+        color = colors[color_index]
+
+        print('Switching color to', color)
+#         print(y_coordinates)
+
+    return former_x, former_y, color   
+
+def redrawOriginalRPE(image, rpe_coordinates):
+    for i in range(0, len(rpe_coordinates)):
+        pixel_y_position = rpe_coordinates[i]
+
+        # Range is 7 because that seems to be the size of the effect
+        for j in range(0,7):
+            pixel_color = image[pixel_y_position+j, i]
+            old_color = (int(pixel_color[0]), int(pixel_color[0]), int(pixel_color[0]))
+
+            if j == 2:
+                add_color =(int(pixel_color[0]), 255, int(pixel_color[0]))
+
+            cv2.circle(image, (i, pixel_y_position+j), 0, old_color, -1)
+
+        # Redraw with full color
+        cv2.circle(image, (i, pixel_y_position+2), 0, add_color, -1)
+        rpe_coordinates[i] = pixel_y_position+2
+
+def drawPoint(image, current_former_x, former_x, former_y, color):
+    
+    global choroid_sclera_coordinates, rpe_coordinates
+    
+    for x_pixels in range(current_former_x, former_x+1):
+        pix_color = image[former_y, x_pixels]
+#                         print(pix_color)
+        if color == top_color:
+            add_color =(int(pix_color[0]), 255, int(pix_color[0]))
+            
+            # Erase Method
+            if rpe_coordinates[x_pixels] != 0:
+                original_pixel = image[rpe_coordinates[x_pixels],x_pixels]
+                print(original_pixel)
+                
+                old_color = (int(original_pixel[0]), int(original_pixel[0]), int(original_pixel[0]))
+                cv2.circle(image, (x_pixels, rpe_coordinates[x_pixels]), 0, old_color, -1)
+
+            rpe_coordinates[x_pixels] = former_y
+
+            cv2.circle(image, (x_pixels, rpe_coordinates[x_pixels]), 0, add_color, -1)
+        elif color == bottom_color: 
+            add_color =(255, 255, int(pix_color[2]))
+            
+            # Erase Method
+            if choroid_sclera_coordinates[x_pixels] != 0:
+                original_pixel = image[choroid_sclera_coordinates[x_pixels],x_pixels]
+                
+                old_color = (int(original_pixel[2]), int(original_pixel[2]), int(original_pixel[2]))
+                cv2.circle(image, (x_pixels, choroid_sclera_coordinates[x_pixels]), 0, old_color, -1)
+
+            choroid_sclera_coordinates[x_pixels] = former_y
+
+            cv2.circle(image, (x_pixels, choroid_sclera_coordinates[x_pixels]), 0, add_color, -1)
+        else:
+            print("error no color detected")
+
+
+cv2.namedWindow("Choroid Measure OpenCV")
+cv2.setMouseCallback('Choroid Measure OpenCV',draw_lines)
+
+while(1):
+    cv2.imshow('Choroid Measure OpenCV',image)
+    k=cv2.waitKey(1) & 0xFF
+    if k==27:
+        break
+
+# Wait for a key press
+cv2.waitKey(0)
+
+# Close the window
+cv2.destroyAllWindows()
+
+# # Save image
+# cv2.imwrite("temp_data/test.png", image)
+# -
+
+image = cv2.imread("annotated_images/6154_oct-005_annotated.png")
+_, test_val = getChoroidLine(image, bottom_color) # Bottom color no longer exists, we have to define the new logic
+print(len(test_val))
+print(test_val)
 
 
