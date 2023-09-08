@@ -532,28 +532,6 @@ def redrawOriginalRPE(image, rpe_coordinates):
 # # Analysis
 
 # +
-# ✅
-def quick_analysis(imagepath, data_array):
-    # quick_analysis uses the generated array from the drawing function, can only be used if the draw function was used
-    image = cv2.imread(imagepath)
-    height, width, _ = image.shape
-
-    _, retina_y_values = getRetina(image)
-    
-    fovea_index = findFovea(retina_y_values)
-
-    start_index, end_index = selectWindowSize(window_size, fovea_index, image)
-    
-    # Compute only the selected window
-    window_retina_line_y_values = retina_y_values[start_index: end_index]
-    
-    window_size_scaled = end_index - start_index
-    
-    # Compute differences in coordinates from top to bottom
-    y_diffs = [data_array['sci'][start_index:end_index][x] - data_array['rpe'][start_index:end_index][x] for x in range(window_size_scaled)]
-        
-    return y_diffs, window_retina_line_y_values
-
 # 🤔 (TBD)
 def analysis(imagepath):
     image = cv2.imread(imagepath)
