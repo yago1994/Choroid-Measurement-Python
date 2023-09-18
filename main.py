@@ -442,7 +442,7 @@ def draw(imagepath, original_filepath, top_color, bottom_color, image_set, image
                 if rpe_coordinates[x_pixels] != 0:
                     original_pixel = image[rpe_coordinates[x_pixels],x_pixels]
     
-                    print("erasing!")
+#                     print("erasing!")
                     old_color = (int(original_pixel[0]), int(original_pixel[0]), int(original_pixel[0]))
                     cv2.circle(image, (x_pixels, rpe_coordinates[x_pixels]), 0, old_color, -1)
 
@@ -1025,156 +1025,156 @@ def printPixelOnImage(image):
     cv2.destroyAllWindows()
 # printPixelOnImage(image)
 
-
 # # Playground
 
 # +
-drawing=False # true if mouse is pressed
-top_color = top_color
-bottom_color = bottom_color
+# drawing=False # true if mouse is pressed
+# top_color = top_color
+# bottom_color = bottom_color
 
-# Initialize the index
-color_index = 0
-colors = [top_color, bottom_color]
+# # Initialize the index
+# color_index = 0
+# colors = [top_color, bottom_color]
 
-im = cv2.imread("temp_data/oct-000.png")
-image = cv2.resize(im, (1920, 1080))    
+# im = cv2.imread("temp_data/oct-000.png")
+# image = cv2.resize(im, (1920, 1080))    
 
-# Create Array for y-coordinate pixels
-choroid_sclera_coordinates = [0] * image.shape[1]
-rpe_coordinates = [0] * image.shape[1]
+# # Create Array for y-coordinate pixels
+# choroid_sclera_coordinates = [0] * image.shape[1]
+# rpe_coordinates = [0] * image.shape[1]
 
 
-_, rpe_coordinates = getOriginalRPELine(image)
+# _, rpe_coordinates = getOriginalRPELine(image)
 
-# ⚠️ TEST IF THIS IS DESIRED!
-redrawOriginalRPE(image, rpe_coordinates)
+# # ⚠️ TEST IF THIS IS DESIRED!
+# redrawOriginalRPE(image, rpe_coordinates)
 
-def draw_lines(event, former_x, former_y, flags, param):
+# def draw_lines(event, former_x, former_y, flags, param):
 
-    global current_former_x, current_former_y, drawing, mode, color, color_index
+#     global current_former_x, current_former_y, drawing, mode, color, color_index
 
-    if event==cv2.EVENT_LBUTTONDOWN:
-        drawing=True
-        current_former_x,current_former_y=former_x,former_y
+#     if event==cv2.EVENT_LBUTTONDOWN:
+#         drawing=True
+#         current_former_x,current_former_y=former_x,former_y
 
-    elif event==cv2.EVENT_MOUSEMOVE:
-        if drawing==True:
-            if former_x <= 0 or former_x >= image.shape[1]-1 or former_y <= 0 or former_y >= image.shape[0]-1:
-                drawing = False
-            else:
-                if former_x > current_former_x:
-                    # This only works if we go left to right
-                    drawPoint(image, current_former_x, former_x, former_y, color)
+#     elif event==cv2.EVENT_MOUSEMOVE:
+#         if drawing==True:
+#             if former_x <= 0 or former_x >= image.shape[1]-1 or former_y <= 0 or former_y >= image.shape[0]-1:
+#                 drawing = False
+#             else:
+#                 if former_x > current_former_x:
+#                     # This only works if we go left to right
+#                     drawPoint(image, current_former_x, former_x, former_y, color)
             
-                    current_former_x = former_x
-                    current_former_y = former_y
+#                     current_former_x = former_x
+#                     current_former_y = former_y
                 
 
-    elif event==cv2.EVENT_LBUTTONUP:
-        drawing=False
+#     elif event==cv2.EVENT_LBUTTONUP:
+#         drawing=False
 
-    elif event==cv2.EVENT_RBUTTONDOWN:
-        print(former_y, former_x)
-        print(image[former_y,former_x])
+#     elif event==cv2.EVENT_RBUTTONDOWN:
+#         print(former_y, former_x)
+#         print(image[former_y,former_x])
         
-        # Clean up Original RPE
-        # ⚠️ TEST IF THIS IS DESIRED!
-#         redrawOriginalRPE(image, rpe_coordinates)
+#         # Clean up Original RPE
+#         # ⚠️ TEST IF THIS IS DESIRED!
+# #         redrawOriginalRPE(image, rpe_coordinates)
         
-        # Increment the index
-        color_index += 1
+#         # Increment the index
+#         color_index += 1
 
-        # If the index is at the end of the list, reset it to 0
-        if color_index == len(colors):
-            color_index = 0
+#         # If the index is at the end of the list, reset it to 0
+#         if color_index == len(colors):
+#             color_index = 0
 
-        # Get the next color from the list
-        color = colors[color_index]
+#         # Get the next color from the list
+#         color = colors[color_index]
 
-        print('Switching color to', color)
-#         print(y_coordinates)
+#         print('Switching color to', color)
+# #         print(y_coordinates)
 
-    return former_x, former_y, color   
+#     return former_x, former_y, color   
 
-def redrawOriginalRPE(image, rpe_coordinates):
-    for i in range(0, len(rpe_coordinates)):
-        pixel_y_position = rpe_coordinates[i]
+# def redrawOriginalRPE(image, rpe_coordinates):
+#     for i in range(0, len(rpe_coordinates)):
+#         pixel_y_position = rpe_coordinates[i]
 
-        # Range is 7 because that seems to be the size of the effect
-        for j in range(0,7):
-            pixel_color = image[pixel_y_position+j, i]
-            old_color = (int(pixel_color[0]), int(pixel_color[0]), int(pixel_color[0]))
+#         # Range is 7 because that seems to be the size of the effect
+#         for j in range(0,7):
+#             pixel_color = image[pixel_y_position+j, i]
+#             old_color = (int(pixel_color[0]), int(pixel_color[0]), int(pixel_color[0]))
 
-            if j == 2:
-                add_color =(int(pixel_color[0]), 255, int(pixel_color[0]))
+#             if j == 2:
+#                 add_color =(int(pixel_color[0]), 255, int(pixel_color[0]))
 
-            cv2.circle(image, (i, pixel_y_position+j), 0, old_color, -1)
+#             cv2.circle(image, (i, pixel_y_position+j), 0, old_color, -1)
 
-        # Redraw with full color
-        cv2.circle(image, (i, pixel_y_position+2), 0, add_color, -1)
-        rpe_coordinates[i] = pixel_y_position+2
+#         # Redraw with full color
+#         cv2.circle(image, (i, pixel_y_position+2), 0, add_color, -1)
+#         rpe_coordinates[i] = pixel_y_position+2
 
-def drawPoint(image, current_former_x, former_x, former_y, color):
+# def drawPoint(image, current_former_x, former_x, former_y, color):
     
-    global choroid_sclera_coordinates, rpe_coordinates
+#     global choroid_sclera_coordinates, rpe_coordinates
     
-    for x_pixels in range(current_former_x, former_x+1):
-        pix_color = image[former_y, x_pixels]
-#                         print(pix_color)
-        if color == top_color:
-            add_color =(int(pix_color[0]), 255, int(pix_color[0]))
+#     for x_pixels in range(current_former_x, former_x+1):
+#         pix_color = image[former_y, x_pixels]
+# #                         print(pix_color)
+#         if color == top_color:
+#             add_color =(int(pix_color[0]), 255, int(pix_color[0]))
             
-            # Erase Method
-            if rpe_coordinates[x_pixels] != 0:
-                original_pixel = image[rpe_coordinates[x_pixels],x_pixels]
-                print(original_pixel)
+#             # Erase Method
+#             if rpe_coordinates[x_pixels] != 0:
+#                 original_pixel = image[rpe_coordinates[x_pixels],x_pixels]
+#                 print(original_pixel)
                 
-                old_color = (int(original_pixel[0]), int(original_pixel[0]), int(original_pixel[0]))
-                cv2.circle(image, (x_pixels, rpe_coordinates[x_pixels]), 0, old_color, -1)
+#                 old_color = (int(original_pixel[0]), int(original_pixel[0]), int(original_pixel[0]))
+#                 cv2.circle(image, (x_pixels, rpe_coordinates[x_pixels]), 0, old_color, -1)
 
-            rpe_coordinates[x_pixels] = former_y
+#             rpe_coordinates[x_pixels] = former_y
 
-            cv2.circle(image, (x_pixels, rpe_coordinates[x_pixels]), 0, add_color, -1)
-        elif color == bottom_color: 
-            add_color =(255, 255, int(pix_color[2]))
+#             cv2.circle(image, (x_pixels, rpe_coordinates[x_pixels]), 0, add_color, -1)
+#         elif color == bottom_color: 
+#             add_color =(255, 255, int(pix_color[2]))
             
-            # Erase Method
-            if choroid_sclera_coordinates[x_pixels] != 0:
-                original_pixel = image[choroid_sclera_coordinates[x_pixels],x_pixels]
+#             # Erase Method
+#             if choroid_sclera_coordinates[x_pixels] != 0:
+#                 original_pixel = image[choroid_sclera_coordinates[x_pixels],x_pixels]
                 
-                old_color = (int(original_pixel[2]), int(original_pixel[2]), int(original_pixel[2]))
-                cv2.circle(image, (x_pixels, choroid_sclera_coordinates[x_pixels]), 0, old_color, -1)
+#                 old_color = (int(original_pixel[2]), int(original_pixel[2]), int(original_pixel[2]))
+#                 cv2.circle(image, (x_pixels, choroid_sclera_coordinates[x_pixels]), 0, old_color, -1)
 
-            choroid_sclera_coordinates[x_pixels] = former_y
+#             choroid_sclera_coordinates[x_pixels] = former_y
 
-            cv2.circle(image, (x_pixels, choroid_sclera_coordinates[x_pixels]), 0, add_color, -1)
-        else:
-            print("error no color detected")
+#             cv2.circle(image, (x_pixels, choroid_sclera_coordinates[x_pixels]), 0, add_color, -1)
+#         else:
+#             print("error no color detected")
 
 
-cv2.namedWindow("Choroid Measure OpenCV")
-cv2.setMouseCallback('Choroid Measure OpenCV',draw_lines)
+# cv2.namedWindow("Choroid Measure OpenCV")
+# cv2.setMouseCallback('Choroid Measure OpenCV',draw_lines)
 
-while(1):
-    cv2.imshow('Choroid Measure OpenCV',image)
-    k=cv2.waitKey(1) & 0xFF
-    if k==27:
-        break
+# while(1):
+#     cv2.imshow('Choroid Measure OpenCV',image)
+#     k=cv2.waitKey(1) & 0xFF
+#     if k==27:
+#         break
 
-# Wait for a key press
-cv2.waitKey(0)
+# # Wait for a key press
+# cv2.waitKey(0)
 
-# Close the window
-cv2.destroyAllWindows()
+# # Close the window
+# cv2.destroyAllWindows()
 
-# # Save image
-# cv2.imwrite("temp_data/test.png", image)
+# # # Save image
+# # cv2.imwrite("temp_data/test.png", image)
+
+# +
+# image = cv2.imread("annotated_images/6154_oct-005_annotated.png")
+# _, test_val = getChoroidLine(image, bottom_color) # Bottom color no longer exists, we have to define the new logic
+# print(len(test_val))
+# print(test_val)
 # -
-
-image = cv2.imread("annotated_images/6154_oct-005_annotated.png")
-_, test_val = getChoroidLine(image, bottom_color) # Bottom color no longer exists, we have to define the new logic
-print(len(test_val))
-print(test_val)
 
 
