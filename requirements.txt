@@ -1,5 +1,5 @@
 opencv-python==4.8.0.74
 numpy==1.21.2
 pandas==2.0.3
-pillow==10.0.0
+pillow==10.0.1
 heyexReader==0.1.3
