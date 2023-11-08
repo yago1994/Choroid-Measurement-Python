@@ -28,7 +28,6 @@ tempfolder = "temp_data"
 annotatedfolder = "annotated_images"
 csvfolder = "csv_data"
 filepath = ""
-TS = 0
 top_color = (0, 255, 0) # Green color for the RPE
 bottom_color = (255, 255, 0) # Blue color for the CSI
 color = top_color  # Start with the top layer color
@@ -36,6 +35,8 @@ window_size = 0
 original_image_width = 0
 window_sizes = [1,3,6]
 data_arrays = []
+thickness_multiplier = 3.87
+aspect_ratio = 1
 
 
 def extract():
@@ -187,7 +188,7 @@ def analyze(filepath, previous_data = []):
     combined_dataframe = pd.DataFrame()
     
     for entry in data_arrays:
-        choroid_thickness = [entry['sci'][x] - entry['rpe'][x] for x in range(0, 1920)]
+        choroid_thickness = [entry['sci'][x] - entry['rpe'][x] for x in range(0, original_image_width)]
         
         data = createDataFrame(choroid_thickness, entry['retina'], entry['image_code'])
         
@@ -315,7 +316,7 @@ choroid_sclera_coordinates = []
 rpe_coordinates = []
 
 def draw(imagepath, original_filepath, top_color, bottom_color, image_set, image_pos):
-    global original_image_width, choroid_sclera_coordinates, rpe_coordinates
+    global original_image_width, choroid_sclera_coordinates, rpe_coordinates, aspect_ratio
     
     drawing=False # true if mouse is pressed
     top_color = top_color
@@ -329,7 +330,9 @@ def draw(imagepath, original_filepath, top_color, bottom_color, image_set, image
     # Get original image width and store in variable
     original_image_width = im.shape[1]
     
-    image = cv2.resize(im, (1920, 1080))  
+    aspect_ratio = original_image_width // im.shape[0]
+    
+    image = cv2.resize(im, (original_image_width, im.shape[0] * aspect_ratio))  
     
     # Create Array for y-coordinate pixels
     choroid_sclera_coordinates = [0] * image.shape[1]
@@ -602,8 +605,13 @@ def getEyeParametersFromDictionary(entry):
     
     # Compute differences in coordinates from top to bottom
     choroid_thickness = [entry['sci'][start_index:end_index][x] - entry['rpe'][start_index:end_index][x] for x in range(window_size_scaled)]
+    
+    # Multiply it by the pixel_to_thickness multiplier from Heidelberg (see above variable = 3.87) and divide any image correction done
+    choroid_thickness_corrected = []
+    for pixel_thickness in choroid_thickness:
+        choroid_thickness_corrected.append(pixel_thickness * thickness_multiplier / aspect_ratio)
         
-    return window_retina_line_y_values, choroid_thickness
+    return window_retina_line_y_values, choroid_thickness_corrected
 
 
 # -
@@ -629,13 +637,13 @@ def findFovea(array):
 # window_size : in millimiters
 def selectWindowSize(window_size, fovea_index):
     
-    # ⚠️ with different images this needs to be changed
-    width = 1920
+    # ⚠️ with different images this may need to be changed
+    width = original_image_width
     
     # New TS as computed by the extension of the original image
-    TS_corrected = (TS * original_image_width) / width
+#     TS_corrected = (TS * original_image_width) / width
     
-    real_x_size = width * TS_corrected
+    real_x_size = original_image_width * TS
     
     total_pixels_needed = (window_size * width) / real_x_size
     
@@ -959,7 +967,7 @@ def contrastConversion():
 
     # Contrast Testing
     image = cv2.imread(content, cv2.IMREAD_COLOR)
-    image = cv2.resize(image, (1920, 1080))   
+    image = cv2.resize(image, (original_image_width, image.shape[0]))   
     height, width, num_channels = image.shape
 
     # Pick the lowest point of the fovea to do the contrast conversion
@@ -1176,5 +1184,7 @@ def printPixelOnImage(image):
 # print(len(test_val))
 # print(test_val)
 # -
+
+
 
 
