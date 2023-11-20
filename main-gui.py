@@ -333,7 +333,7 @@ def draw(imagepath, original_filepath, top_color, bottom_color, image_set, image
     # Get original image width and store in variable
     original_image_width = im.shape[1]
     
-    aspect_ratio = original_image_width // im.shape[0]
+    aspect_ratio = 2 # original_image_width // im.shape[0]
     
     image = cv2.resize(im, (original_image_width, im.shape[0] * aspect_ratio))  
     
