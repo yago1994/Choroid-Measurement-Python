@@ -210,6 +210,8 @@ def annotate_images():
             if i == 0:
                 drawInstructions()
 
+            print(imagepath)
+            print(filepath)
             rpe_array, sci_array = draw(imagepath, filepath, top_color, bottom_color, number_of_files_in_folder, i)
             
             # Add data to the dictionary and to function return
@@ -291,7 +293,7 @@ def annotate_images():
         #     image_data = {'image_code': image, 'rpe': rpe_array, 'sci': sci_array}
         #     data_arrays.append(image_data)
             # ...
-            
+
 # ...
 def drawInstructions():
     instructions = (
@@ -394,9 +396,8 @@ def draw(imagepath, original_filepath, top_color, bottom_color, image_set, image
 
             # Get the next color from the list
             color = colors[color_index]
-
-#             print('Switching color to', color)
-                
+            print('Switching color to', color)
+            
             # Overwrite previous display
             cv2.line(image, (image.shape[1] - 150, 30), (image.shape[1], 30), (0,0,0), 60)
             # Update color selection
@@ -447,8 +448,7 @@ def draw(imagepath, original_filepath, top_color, bottom_color, image_set, image
                 # Erase Method
                 if rpe_coordinates[x_pixels] != 0:
                     original_pixel = image[rpe_coordinates[x_pixels],x_pixels]
-    
-#                     print("erasing!")
+                    #                     print("erasing!")
                     old_color = (int(original_pixel[0]), int(original_pixel[0]), int(original_pixel[0]))
                     cv2.circle(image, (x_pixels, rpe_coordinates[x_pixels]), 0, old_color, -1)
 
@@ -512,6 +512,7 @@ def draw(imagepath, original_filepath, top_color, bottom_color, image_set, image
     print("🎉 Your anotated image has been saved!")
     
     return rpe_coordinates, choroid_sclera_coordinates
+
 
 def redrawOriginalRPE(image, rpe_coordinates):
     for i in range(0, len(rpe_coordinates)):
@@ -990,3 +991,7 @@ def createExcel(dataframes, imagepath):
 
 if __name__ == "__main__":
     create_main_window()
+
+
+
+
