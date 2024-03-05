@@ -129,6 +129,10 @@ def calculate_TS():
 # Functions extract(), annotate(), analyze() need to be adapted to work with Tkinter
 def extract_images():
     global filepath
+
+    # Create folder structures for saving files
+    createNeededFolders()
+
     # Ask the user for the directory where the data is located
     directory = filedialog.askopenfilename(
         initialdir=os.getcwd(),  # Start in the current working directory
@@ -153,7 +157,7 @@ def extract_images():
 
         print("\nThis is the scaleX from the Heidelberg measurement", vol.fileHeader['scaleX'])
         print("This is the scaleZ from the Heidelberg measurement", vol.fileHeader['scaleZ'])
-        
+
         # Remove previous images in tempfolder
         deleteFolderContent(tempfolder)
 
@@ -162,7 +166,7 @@ def extract_images():
             try:
                 shutil.move(source_file, tempfolder)
             except FileNotFoundError:
-                print(f"File 'oct-00{i}.png' does not exist")
+                print(f"File 'oct-00{i}.png' does not exist or file only has one image")
                 break
         
         messagebox.showinfo("Success!", f"🎉 The individual slice images have been extracted into /{tempfolder}")
@@ -220,7 +224,7 @@ def annotate_images():
             # Note that the actual drawing function will need to remain separate
             # ...
 
-        print("\n🎉🎉🎉 All images have been annotated!")
+        # print("\n🎉🎉🎉 All images have been annotated!")
         messagebox.showinfo("Success!", f"🎉 The annotated images are available in /{annotatedfolder}")
         
     else:
@@ -507,9 +511,9 @@ def draw(imagepath, original_filepath, top_color, bottom_color, image_set, image
     new_image_path = directory + original_file_name_without_extension + "_" +file_name_without_extension + "_annotated.png"
     cv2.imwrite(new_image_path, image)
     
-    print("Annotated file name:", new_image_path)
+    print(f"Annotated file name: {new_image_path}")
     
-    print("🎉 Your anotated image has been saved!")
+    # print("🎉 Your anotated image has been saved!")
     
     return rpe_coordinates, choroid_sclera_coordinates
 
@@ -616,11 +620,6 @@ def analyze_images():
         image = cv2.imread(imagepath)
         _, retina_y_values = getRetina(image)
 
-        # -> Add retina & fovea position to dictionary
-        index = findDataArrayElement(data_arrays, imagepath)
-        data_arrays[index]['retina'] = retina_y_values
-        data_arrays[index]['fovea'] = findFovea(retina_y_values)
-
         if not data_arrays:
             # -> Add choroid & retina to dictionary
             # ⚠️ NEEDS TESTING OF ANALYSIS FUNCTION ⚠️
@@ -630,6 +629,11 @@ def analyze_images():
             # rpe_line, sci_line, retina_line = analysis(imagepath)
             # data_arrays[index]["rpe"] = rpe_line
             # data_arrays[index]["sci"] = sci_line
+
+        # -> Add retina & fovea position to dictionary
+        index = findDataArrayElement(data_arrays, imagepath)
+        data_arrays[index]['retina'] = retina_y_values
+        data_arrays[index]['fovea'] = findFovea(retina_y_values)
     
     # -> raw
     # -> loop through dictionary
@@ -653,7 +657,7 @@ def analyze_images():
 
         dataframes.append(combined_dataframe)
 
-    print("\n🎉🎉🎉 All images have been analyzed!")
+    # print("\n🎉🎉🎉 All images have been analyzed!")
 
     messagebox.showinfo("Success!", f"🎉 The analyzed file {os.path.basename(filepath)} is available in /{csvfolder}")
 
@@ -961,7 +965,7 @@ def createCSV(dataframe, imagepath):
     # Save the DataFrame as a CSV file
     dataframe.to_csv(csv_file_name, index=False)
 
-    print("🎉 Your analysis file has been saved!")
+    # print("🎉 Your analysis file has been saved!")
 
 
 def createExcel(dataframes, imagepath):
@@ -987,7 +991,19 @@ def createExcel(dataframes, imagepath):
     # Save the Excel file
     writer.save()
 
-    print("🎉 Your analysis file has been saved!")
+    # print("🎉 Your analysis file has been saved!")
+    messagebox.showinfo("Success!", "🎉 Your analysis file has been saved!")
+
+def createNeededFolders():
+    # Make a folder if it doesn't exist
+    if not os.path.exists(tempfolder):
+        os.makedirs(tempfolder)
+
+    if not os.path.exists(annotatedfolder):
+        os.makedirs(annotatedfolder)
+
+    if not os.path.exists(csvfolder):
+        os.makedirs(csvfolder)
 
 if __name__ == "__main__":
     create_main_window()
