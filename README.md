@@ -7,9 +7,9 @@
 
 # Getting Started
 1. Have a usable command prompt, i.e. Windows PowerShell, Terminal
-2. Install python (3.10 should work)
+2. Install python (3.8 is required to work with the HeyexReader package)
 3. Install Pypi
-4. Install Jupyter Notebook from https://jupyter.org/
+4. (Optional) Install Jupyter Notebook from https://jupyter.org/
 
 Then use:
 
@@ -19,7 +19,12 @@ To pull all the dependencies you need to run
 
 # Run
 
-In Terminal
+In Terminal:
+
+TKinter Implementation:
+1. You can use the standard GUI and run the code using that instead of the Jupyter CLI
+
+Jupyter Implementation:
 
 ```$ cd PATH_TO_YOUR_DIRECTORY/Choroid-Measurement-Python```
 
