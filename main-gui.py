@@ -8,6 +8,7 @@ from PIL import Image
 import heyexReader
 import time
 import shutil
+from datetime import datetime
 
 # Persistent variables
 datafolder = "data"
@@ -501,8 +502,8 @@ def draw(imagepath, original_filepath, top_color, bottom_color, image_set, image
     file_name = os.path.basename(imagepath)
     file_name_without_extension = os.path.splitext(file_name)[0]
     
-    # Get file directory
-    directory = "annotated_images/"
+    # Create new file directory
+    directory = createFolder(original_file_name_without_extension+"-annotated_images")
     
     # Get original file name
     original_file_name = os.path.basename(original_filepath)
@@ -957,8 +958,11 @@ def createCSV(dataframe, imagepath):
     file_name = os.path.basename(imagepath)
     file_name_without_extension = os.path.splitext(file_name)[0]
 
+    # Get the current date in the format MMDDYYYY
+    current_date = datetime.now().strftime('%m%d%Y')
+
     # Add "_analysis" to the file name
-    csv_file_name = "csv_data/" + file_name_without_extension + "_analysis_" + str(window_size) + "mm.csv"
+    csv_file_name = "csv_data/" + current_date + "-" + file_name_without_extension + "_analysis_" + str(window_size) + "mm.csv"
 
     print("CSV file name:", csv_file_name)
 
@@ -973,8 +977,11 @@ def createExcel(dataframes, imagepath):
     file_name = os.path.basename(imagepath)
     file_name_without_extension = os.path.splitext(file_name)[0]
     
+    # Get the current date in the format MMDDYYYY
+    current_date = datetime.now().strftime('%m%d%Y')
+
     # Add "_analysis" to the sheet name
-    filename = "csv_data/" + file_name_without_extension + "_analysis.xlsx"
+    filename = "csv_data/" + current_date + "-" + file_name_without_extension + "_analysis.xlsx"
 
     # Create the Excel writer object
     writer = pd.ExcelWriter(filename, engine='xlsxwriter')
@@ -993,6 +1000,22 @@ def createExcel(dataframes, imagepath):
 
     # print("🎉 Your analysis file has been saved!")
     messagebox.showinfo("Success!", "🎉 Your analysis file has been saved!")
+
+def createFolder(base_path):
+    global annotatedfolder
+    # Get the current date in the format MMDDYYYY
+    current_date = datetime.now().strftime('%m%d%Y')
+    
+    # Append the date to the base path
+    path_with_date = current_date + "-" + base_path
+    
+    annotatedfolder = path_with_date
+    
+    # Create the new directory if it does not exist
+    if not os.path.exists(path_with_date):
+        os.makedirs(path_with_date)
+        
+    return path_with_date
 
 def createNeededFolders():
     # Make a folder if it doesn't exist
