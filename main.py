@@ -144,9 +144,9 @@ def analyze(filepath, previous_data = []):
 
             # -> loop through dictionary
             for entry in data_arrays:
-                retina_line, choroid_thickness = getEyeParametersFromDictionary(entry)
+                choroid_thickness = getEyeParametersFromDictionary(entry)
 
-                data = createDataFrame(choroid_thickness, retina_line, entry['image_code'])
+                data = createDataFrame(choroid = choroid_thickness, filename = entry['image_code'])
 
                 # Append the data to the combined_dataframe
                 combined_dataframe = pd.concat([combined_dataframe, data], axis=1)
@@ -179,25 +179,52 @@ def analyze(filepath, previous_data = []):
             window_size = window
             print(f"Analyzing at {window_size} mm")
                 
-            retina_line, choroid_thickness = getEyeParametersFromDictionary(data_arrays[index])
+            choroid_thickness = getEyeParametersFromDictionary(data_arrays[index])
 
-            combined_dataframe = createDataFrame(choroid_thickness, retina_line, filepath)
+            combined_dataframe = createDataFrame(choroid = choroid_thickness, filename = data_arrays[index]["image_code"])
             
             dataframes.append(combined_dataframe)
     
     # Add Raw data
-    combined_dataframe = pd.DataFrame()
+    coordinates_combined_dataframe = pd.DataFrame()
+    raw_combined_dataframe = pd.DataFrame()
     
+    # Empty array for Excel conversio
+    excel_data_file = []
+    
+    # Add computation of the averages here (optional 1 image vs all)
+    averages = []
+    for df in dataframes:
+        avg = df.mean().mean()
+        averages.append(avg)
+
+    # Create a new DataFrame with the format
+    average_df = pd.DataFrame({
+        '1': [averages[0]],
+        '3': [averages[1]],
+        '6': [averages[2]]
+    })
+    transposed_df = average_df.transpose().reset_index()
+    transposed_df.columns = ['Window Size (mm)', 'Average Thickness (um)']
+    
+    excel_data_file.append(transposed_df)
+    
+    # Add Raw Data to Sheet
     for entry in data_arrays:
         choroid_thickness = [entry['sci'][x] - entry['rpe'][x] for x in range(0, original_image_width)]
         
-        data = createDataFrame(choroid_thickness, entry['retina'], entry['image_code'])
-        
-        combined_dataframe = pd.concat([combined_dataframe, data], axis=1)
-        
-    dataframes.append(combined_dataframe)
+        coordinates_data = createDataFrame(retina = entry['retina'], rpe = entry['rpe'], sci = entry['sci'], filename = entry['image_code'])
+        coordinates_combined_dataframe = pd.concat([coordinates_combined_dataframe, coordinates_data], axis=1)
+
+        choroid_raw_data = createDataFrame(choroid = choroid_thickness, filename = entry['image_code'])
+        raw_combined_dataframe = pd.concat([raw_combined_dataframe, choroid_raw_data], axis=1)
+      
+    # Add coordinates to sheet
+    excel_data_file.append(coordinates_combined_dataframe)
+    # Add raw data to sheet
+    excel_data_file.append(raw_combined_dataframe)
                     
-    createExcel(dataframes, filepath)
+    createExcel(excel_data_file, filepath)
 
 
 # # Heyex Analysis
@@ -517,7 +544,7 @@ def draw(imagepath, original_filepath, top_color, bottom_color, image_set, image
     original_file_name_without_extension = os.path.splitext(original_file_name)[0] 
     
     # Create new file directory
-    directory = createFolder(original_file_name_without_extension+"-annotated_images")
+    directory = createFolder(original_file_name_without_extension+"-annotated_images/")
 
     new_image_path = directory + original_file_name_without_extension + "_" +file_name_without_extension + "_annotated.png"
     cv2.imwrite(new_image_path, image)
@@ -618,6 +645,8 @@ def getEyeParametersFromDictionary(entry):
     
     # Compute only the selected window
     window_retina_line_y_values = entry['retina'][start_index: end_index]
+    window_rpe_line_y_values = entry['rpe'][start_index: end_index]
+    window_sci_line_y_values = entry['sci'][start_index: end_index]
     
     window_size_scaled = end_index - start_index
     
@@ -629,7 +658,8 @@ def getEyeParametersFromDictionary(entry):
     for pixel_thickness in choroid_thickness:
         choroid_thickness_corrected.append(pixel_thickness * thickness_multiplier / aspect_ratio)
         
-    return window_retina_line_y_values, choroid_thickness_corrected
+#     return window_retina_line_y_values, window_rpe_line_y_values, window_sci_line_y_values, choroid_thickness_corrected
+    return choroid_thickness_corrected
 
 
 # -
@@ -809,12 +839,19 @@ def detectPixelMatch(incoming_pixel, target_color):
 
 # # Dataframe generation and saving to a CSV/Excel 
 
-def createDataFrame(choroid_thickness, retina_line, filename):
-    # Convert the list to a DataFrame
+def createDataFrame(choroid=None, retina=None, rpe=None, sci=None, filename='default'):
+    # Initialize an empty DataFrame
     df = pd.DataFrame()
     
-    df['Retina Coordinates_'+filename] = retina_line
-    df['Choroid Thickness_'+filename] = choroid_thickness
+    # Add columns to the DataFrame only if the corresponding array is provided
+    if retina is not None:
+        df['Retina y_values_' + filename] = retina
+    if rpe is not None:
+        df['RPE y_values_' + filename] = rpe
+    if sci is not None:
+        df['SCI y_values_' + filename] = sci
+    if choroid is not None:
+        df['Choroid Thickness_' + filename] = choroid
     
     return df
 
@@ -845,6 +882,7 @@ def createCSV(dataframe, imagepath):
     print("🎉 Your analysis file has been saved!")
 
 
+# +
 def createExcel(dataframes, imagepath):
     # Get file name
     file_name = os.path.basename(imagepath)
@@ -858,21 +896,31 @@ def createExcel(dataframes, imagepath):
 
     # Create the Excel writer object
     writer = pd.ExcelWriter(filename, engine='xlsxwriter')
-
-    for i, dataframe in enumerate(dataframes[:-1]):
-        sheet_name = str(window_sizes[i])+"mm"
-        # Write the dataframe to a sheet in the Excel file
-        dataframe.to_excel(writer, sheet_name=sheet_name, index=False)
     
-    sheet_name = "Raw Data"
+#     for i, dataframe in enumerate(dataframes[:-2]):
+#         sheet_name = str(window_sizes[i])+"mm"
+#         # Write the dataframe to a sheet in the Excel file
+#         dataframe.to_excel(writer, sheet_name=sheet_name, index=False)
+
+    raw_sheet = "Thickness Profile"
     # Write the dataframe to a sheet in the Excel file
-    dataframes[-1].to_excel(writer, sheet_name=sheet_name, index=False)
+    dataframes[0].to_excel(writer, sheet_name=raw_sheet, index=False)
+    
+    raw_sheet = "Raw Data"
+    # Write the dataframe to a sheet in the Excel file
+    dataframes[-1].to_excel(writer, sheet_name=raw_sheet, index=False)
+    
+    coordinates_sheet = "Coordinates"
+    # Write the dataframe to a sheet in the Excel file
+    dataframes[-2].to_excel(writer, sheet_name=coordinates_sheet, index=False)
 
     # Save the Excel file
     writer.save()
 
     print("🎉 Your analysis file has been saved!")
 
+
+# -
 
 # # Get TS Scaling
 
