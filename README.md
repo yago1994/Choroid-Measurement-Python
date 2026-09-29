@@ -7,15 +7,49 @@
 
 # Getting Started
 1. Have a usable command prompt, i.e. Windows PowerShell, Terminal
-2. Install python (3.8 is required to work with the HeyexReader package)
-3. Install Pypi
+2. Install Python 3.11 (the target version for this dependency set).
+3. Install Git, which pip uses to install the pinned HeyexReader source revision.
 4. (Optional) Install Jupyter Notebook from https://jupyter.org/
 
-Then use:
+Create a fresh virtual environment:
 
-```$ pip install -r requirements.txt```
+```sh
+python3.11 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+python -m pip check
+```
 
-To pull all the dependencies you need to run
+On Windows, create the environment with `py -3.11 -m venv .venv` and activate
+it with `.venv\Scripts\Activate.ps1` in PowerShell.
+
+The published `heyexReader==0.1.3` package reads OCT buffers with
+`array.fromstring()`, which was removed in Python 3.9. The requirement above
+pins an immutable upstream revision containing the `frombytes()` fix from
+[HeyexReader PR #6](https://github.com/ayl/heyexReader/pull/6). Installing the
+old PyPI release instead will break OCT reading on Python 3.11.
+
+If you reuse an environment containing the PyPI reader, explicitly replace
+it: both builds report version 0.1.3, so pip may otherwise retain the old code.
+
+```sh
+python -m pip install --force-reinstall --no-deps "heyexReader @ git+https://github.com/ayl/heyexReader.git@73aa32cf7aa283446aee1be8808651598052bc26"
+```
+
+NumPy, Pillow, and OpenCV have also been updated to address the reported
+dependency alerts. Keep this dependency set together; Pillow 12.3.0 requires
+Python 3.10 or newer.
+
+## Reader regression checks
+
+```sh
+python -m unittest discover -s tests -v
+```
+
+These checks read and render a synthetic OCT volume without patient data or
+a display. They cover the installed reader and dependencies; they do not
+replace manual checks of the annotation GUI and measurement exports.
 
 # Run
 
